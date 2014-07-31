@@ -31,3 +31,5 @@ Validate EW, not EU
 Validate/update/undo hosts file
 
 wxPython GUI 
+
+Cross-platform stuff for Linux

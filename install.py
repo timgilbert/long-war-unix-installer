@@ -2,7 +2,7 @@
 
 """Long War installer for OS/X."""
 
-import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap
+import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re
 import distutils.spawn
 
 # Errors
@@ -11,6 +11,7 @@ class InnoExtractorNotFound(InstallError): pass
 class LongWarFileNotFound(InstallError): pass
 class InnoExtractionFailed(InstallError): pass
 class SteamDirectoryNotFound(InstallError): pass
+class NoGameDirectoryFound(InstallError): pass
 
 class Extractor(object):
 	"""Extracts files from the InnoInstall packages."""
@@ -49,16 +50,56 @@ class Extractor(object):
 
 class GameDirectory(object):
 	"""Class representing an installed game directory."""
-	def __init__(self, root):
-		self.root = root
 
-	@staticmethod
-	def FindInstalledGame():
-		logging.debug('Looking for game installation...')
-		steamRoot = os.path.expanduser('~/Library/Application Support/SteamX')
-		if not os.path.isdir(steamRoot):
-			logging.debug("Can't open steam root at %s", steamRoot)
+	def __init__(self, root=None):
+		if root is None:
+			finder = GameDirectoryFinder()
+			root = finder.find()
+		self.root = root
+		logging.debug('Game root directory located at %s', self.root)
+
+
+# TODO: refactor into platform-specific subclasses
+class GameDirectoryFinder(object):
+	STEAM_LIBRARY_ROOT = '~/Library/Application Support/Steam' 
+	STEAM_CONFIG_FILE = 'config/config.vdf'
+	GAME_ROOT = 'SteamApps/common/XCom-Enemy-Unknown'
+
+	def __init__(self):
+		self.steamRoot = os.path.expanduser(self.STEAM_LIBRARY_ROOT)
+		if not os.path.isdir(self.steamRoot):
+			logging.debug("Can't open steam root at %s", self.steamRoot)
 			raise SteamDirectoryNotFound()
+
+	def find(self):
+		for root in self._findSteamInstallRoots():
+			guess = os.path.join(root, self.GAME_ROOT)
+			if os.path.isdir(guess):
+				return guess
+			#logging.debug("No game directory found in %s", guess)
+		raise NoGameDirectoryFound()
+
+ 	def _findSteamInstallRoots(self):
+ 		allRoots = [self.steamRoot] + self._readSteamConfig()
+
+ 		return allRoots
+
+ 	def _readSteamConfig(self):
+ 		result = []
+
+ 		# Grub through the steam config files to find alternate install directories
+ 		config = os.path.join(self.steamRoot, self.STEAM_CONFIG_FILE)
+ 		if not os.path.exists(config):
+ 			logging.debug("Warning: can't open steam config file %s to find alternate install directories", config)
+ 			return result
+
+ 		with open(config) as f:
+ 			for line in f:
+ 				match = re.match(r'^\s*"BaseInstallFolder[^"]+"\s+"(.+)"\s*$', line)
+ 				if match is not None:
+ 					result.append(match.group(1))
+ 					logging.debug('Found steam install directory %s!', match.group(1))
+ 		return result
 
 def abort(errmsg):
 	print textwrap.dedent(errmsg)
@@ -79,7 +120,7 @@ def main():
 		if args.game is not None:
 			game = GameDirectory(args.game)
 		else:
-			game = GameDirectory(GameDirectory.FindInstalledGame())
+			game = GameDirectory()
 
 		extractor = Extractor(args.filename)
 
@@ -100,10 +141,14 @@ def main():
 			""")
 	except LongWarFileNotFound, e:
 		abort("Can't open file '" + str(e) + "'!")
+	except NoGameDirectoryFound, e:
+		abort("""\
+			I couldn't figure out where your XCom install directory is. Please use the --game option
+			to specify where to find it.""")
 	except SteamDirectoryNotFound, e:
 		abort("""\
-			I couldn't figure out where your steam install directory is. Please use the --game option
-			to specify where to find it.""")
+			I couldn't figure out where your steam installation is. Please use the --game option
+			to specify where to find it your game installation directory.""")
 	except InnoExtractionFailed, e:
 		abort(str(e))
 	
