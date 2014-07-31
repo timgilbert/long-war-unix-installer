@@ -15,7 +15,8 @@ OS/X `homebrew` users can install it via
 brew install innoinstall
 ```
 
-This is optimised for Steam installation of XCom right now.
+This only works for the Steam installation of XCom: Enemy Within right now. Getting it to work for 
+Enemy Unknown or other distributions shouldn't be too hard to do.
 
 # TODO
 
