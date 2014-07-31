@@ -5,13 +5,98 @@
 import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re
 import distutils.spawn
 
-# Errors
-class InstallError(Exception): pass
-class InnoExtractorNotFound(InstallError): pass
-class LongWarFileNotFound(InstallError): pass
-class InnoExtractionFailed(InstallError): pass
-class SteamDirectoryNotFound(InstallError): pass
-class NoGameDirectoryFound(InstallError): pass
+def main():
+    parser = argparse.ArgumentParser(description='Install Long War on OS/X.')
+    parser.add_argument('filename', help='Filename for the Long War executable file')
+    parser.add_argument('--game', help='Directory to use for game installation')
+    parser.add_argument('--list', action='store_true', help='List mod backups and exit')
+    parser.add_argument('--uninstall', help='Uninstall given mod and exit')
+    parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output')
+
+    args = parser.parse_args()
+
+    loglevel = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(format='%(message)s', level=loglevel)
+
+    try:
+        game = GameDirectory(args.game)
+
+        if args.list:
+            game.list()
+            return
+
+        if args.uninstall:
+            game.uninstall(args.uninstall)
+            return
+
+        game.apply(args.filename)
+
+    except InnoExtractorNotFound:
+        abort("""\
+            In order to run this program, you must first install innoextract.
+            If you've got homebrew installed, you can run this command:
+            
+                brew install innoextract
+            
+            If you aren't using homebrew, install innoextract from its homepage here: 
+
+                http://constexpr.org/innoextract/
+            """)
+    except LongWarFileNotFound, e:
+        abort("Can't open file '" + str(e) + "'!")
+    except NoGameDirectoryFound, e:
+        abort("""\
+            I couldn't figure out where your XCom install directory is. Please use the --game option
+            to specify where to find it.""")
+    except SteamDirectoryNotFound, e:
+        abort("""\
+            I couldn't figure out where your steam installation is. Please use the --game option
+            to specify where to find it your game installation directory.""")
+    except InnoExtractionFailed, e:
+        abort(str(e))
+
+def abort(errmsg):
+    print textwrap.dedent(errmsg)
+    sys,exit(1)
+
+class GameDirectory(object):
+    """Class representing an installed game directory."""
+    BACKUP_DIRECTORY = 'Long-War-Backups'
+
+    def __init__(self, root=None):
+        if root is None:
+            finder = GameDirectoryFinder()
+            root = finder.find()
+        if not os.path.isdir(root):
+            logging.info("Can't open directory %s!", root)
+            raise NoGameDirectoryFound()
+        self.root = root
+        logging.debug('Game root directory located at %s', self.root)
+        self.backups = None
+        self.scan()
+
+    def getBackupDirectory(self, version):
+        return os.path.join(self.root, self.BACKUP_DIRECTORY, version)
+
+    def scan(self):
+        logging.debug('Scanning for available backups...')
+        backupRoot = os.path.join(self.root, self.BACKUP_DIRECTORY)
+        if not os.path.isdir(backupRoot):
+            logging.debug("Can't find backup root %s...", backupRoot)
+            return
+
+    def list(self):
+        logging.debug('Listing backups...')
+
+    def apply(self, filename):
+        extractor = Extractor(filename)
+        
+        patcher = Patcher(extractor.modname, self)
+        patcher.patch(extractor)
+
+    def undo(self, patchname):
+        logging.debug('Undoing...')     
+
 
 class Extractor(object):
     """Extracts files from the InnoInstall packages."""
@@ -26,6 +111,7 @@ class Extractor(object):
         self.tmp = None
 
     def extract(self):
+        """Extract the mod files to a temp directory, then scan them"""
         self.validate()
         logging.info('Extracting mod "{}"...'.format(self.modname))
 
@@ -72,15 +158,12 @@ class Extractor(object):
             else:
                 for filename in files:
                     if re.search(r'txt|jpg$', filename):
-                        self.auxilliaryFiles.append(self._relativePath(root, filename))
+                        patchfile = PatchFile(filename, root, self.tmp)
+                        self.patchFiles.append(patchfile)
+                        #self.auxilliaryFiles.append(self._relativePath(root, filename))
 
         # logging.debug('Aux: %s', self.auxilliaryFiles)
         # logging.debug('Patch: %s', self.patchFiles)
-
-    def _relativePath(self, root, filename):
-        """Given an absolute path to a filename, return its patch relative to self.tmp"""
-        path = os.path.join(root, filename)
-        return path.replace(self.tmp + '/', '') # This is slightly dirty
 
 class PatchFile(object):
     """Represents a single file to be patched from the mod"""
@@ -106,44 +189,6 @@ class PatchFile(object):
     def getGamePath(self, gameRoot):
         """Full path to where this file would belong in the game folder"""
         return os.path.join(gameRoot, 'XCOMData', 'XEW', self.relativePath)
-
-class GameDirectory(object):
-    """Class representing an installed game directory."""
-    BACKUP_DIRECTORY = 'Long-War-Backups'
-
-    def __init__(self, root=None):
-        if root is None:
-            finder = GameDirectoryFinder()
-            root = finder.find()
-        if not os.path.isdir(root):
-            logging.info("Can't open directory %s!", root)
-            raise NoGameDirectoryFound()
-        self.root = root
-        logging.debug('Game root directory located at %s', self.root)
-        self.backups = None
-        self.scan()
-
-    def getBackupDirectory(self, version):
-        return os.path.join(self.root, self.BACKUP_DIRECTORY, version)
-
-    def scan(self):
-        logging.debug('Scanning for available backups...')
-        backupRoot = os.path.join(self.root, self.BACKUP_DIRECTORY)
-        if not os.path.isdir(backupRoot):
-            logging.debug("Can't find backup root %s...", backupRoot)
-            return
-
-    def list(self):
-        logging.debug('Listing backups...')
-
-    def apply(self, filename):
-        extractor = Extractor(filename)
-        
-        patcher = Patcher(extractor.modname, self)
-        patcher.patch(extractor)
-
-    def undo(self, patchname):
-        logging.debug('Undoing...')     
 
 class Backup(object):
     """Represents a single backup directory"""
@@ -239,9 +284,10 @@ class GameDirectoryFinder(object):
         return allRoots
 
     def _readSteamConfig(self):
+        """Grub through the steam config files to find alternate install directories. This is very 
+        simple-minded regex parsing which could easily fail, but it's just a heuristic."""
         result = []
 
-        # Grub through the steam config files to find alternate install directories
         config = os.path.join(self.steamRoot, self.STEAM_CONFIG_FILE)
         if not os.path.exists(config):
             logging.debug("Warning: can't open steam config file %s to find alternate install directories", config)
@@ -255,63 +301,12 @@ class GameDirectoryFinder(object):
                     logging.debug('Found steam install directory %s!', match.group(1))
         return result
 
-def abort(errmsg):
-    print textwrap.dedent(errmsg)
-    sys,exit(1)
+# Errors
+class InstallError(Exception): pass
+class InnoExtractorNotFound(InstallError): pass
+class LongWarFileNotFound(InstallError): pass
+class InnoExtractionFailed(InstallError): pass
+class SteamDirectoryNotFound(InstallError): pass
+class NoGameDirectoryFound(InstallError): pass
 
-def main():
-    parser = argparse.ArgumentParser(description='Install Long War on OS/X.')
-    parser.add_argument('filename', help='Filename for the Long War executable file')
-    parser.add_argument('--game', help='Directory to use for game installation')
-    parser.add_argument('--list', action='store_true', help='List mod backups and exit')
-    parser.add_argument('--uninstall', help='Uninstall given mod and exit')
-    parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output')
-
-    args = parser.parse_args()
-
-    loglevel = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(format='%(message)s', level=loglevel)
-
-    try:
-        game = GameDirectory(args.game)
-
-        if args.list:
-            game.list()
-            return
-
-        if args.uninstall:
-            game.uninstall(args.uninstall)
-            return
-
-        game.apply(args.filename)
-        #extractor = Extractor(args.filename)
-
-        #extractor.extract()
-
-        #extractor.cleanup()
-
-    except InnoExtractorNotFound:
-        abort("""\
-            In order to run this program, you must first install innoextract.
-            If you've got homebrew installed, you can run this command:
-            
-                brew install innoextract
-            
-            If you aren't using homebrew, install innoextract from its homepage here: 
-
-                http://constexpr.org/innoextract/
-            """)
-    except LongWarFileNotFound, e:
-        abort("Can't open file '" + str(e) + "'!")
-    except NoGameDirectoryFound, e:
-        abort("""\
-            I couldn't figure out where your XCom install directory is. Please use the --game option
-            to specify where to find it.""")
-    except SteamDirectoryNotFound, e:
-        abort("""\
-            I couldn't figure out where your steam installation is. Please use the --game option
-            to specify where to find it your game installation directory.""")
-    except InnoExtractionFailed, e:
-        abort(str(e))
-    
 if __name__ == '__main__': main()
