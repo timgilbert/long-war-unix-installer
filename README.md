@@ -6,33 +6,26 @@ This is basically intended to automate the process laid out in
 [this forum post](http://forums.nexusmods.com/index.php?/topic/1918524-long-war-for-mac-osx-pointers-advice/#entry17035114).
 
 Note that Long War ships as a Windows installer. I'm writing this for OS/X, though I'm trying to 
-keep it platform independent so that it could run on Linux too in theory.
+keep it platform independent so that it could run on Linux too in theory. It depends on Python 2.7
+(and no other python stuff, currently).
 
 This project depends on the user having [innoextract](http://constexpr.org/innoextract/) installed. 
-OS/X `homebrew` users can install it via
+OS/X `homebrew` users can install it via:
 
-```
-brew install innoinstall
-```
+    brew install innoextract
 
 This only works for the Steam installation of XCom: Enemy Within right now. Getting it to work for 
 Enemy Unknown or other distributions shouldn't be too hard to do.
 
+Docs are forthcoming. Meanwhile, `./install.py --help` works.
+
 # TODO
 
-Back up files
-
-Patch executables
-
-Undo to backup
-
-Look in `~/Library/Application Support/Steam/config/config.vdf` for "BaseInstallFolder" lines, 
-use for heuristic find of XComEW files
-
-Validate EW, not EU
-
-Validate/update/undo hosts file
-
-wxPython GUI 
-
-Cross-platform stuff for Linux
+* Docs / man page
+* Apply patches from mod! ;)
+* Patch executables
+* Undo and revert to backup
+* Validate that game is EW, not EU, or better yet handle EU-only installs
+* Validate/update/undo hosts file updates to guard against phone home resets
+* wxPython (etc) GUI 
+* Linux support (if needed)
