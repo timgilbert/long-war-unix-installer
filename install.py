@@ -57,6 +57,13 @@ class GameDirectory(object):
 			root = finder.find()
 		self.root = root
 		logging.debug('Game root directory located at %s', self.root)
+		self.scan()
+
+	def scan(self):
+		pass
+
+	def list(self):
+		print "hello"
 
 
 # TODO: refactor into platform-specific subclasses
@@ -109,6 +116,7 @@ def main():
 	parser = argparse.ArgumentParser(description='Install Long War on OS/X.')
 	parser.add_argument('filename', help='Filename for the Long War executable file')
 	parser.add_argument('--game', help='Directory to use for game installation')
+	parser.add_argument('--list',  action='store_true', help='List mod backups and exit')
 	parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output')
 
 	args = parser.parse_args()
@@ -117,10 +125,11 @@ def main():
 	logging.basicConfig(format='%(message)s', level=loglevel)
 
 	try:
-		if args.game is not None:
-			game = GameDirectory(args.game)
-		else:
-			game = GameDirectory()
+		game = GameDirectory(args.game)
+
+		if args.list:
+			game.list()
+			return
 
 		extractor = Extractor(args.filename)
 

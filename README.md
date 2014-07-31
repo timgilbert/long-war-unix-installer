@@ -15,6 +15,8 @@ OS/X `homebrew` users can install it via
 brew install innoinstall
 ```
 
+This is optimised for Steam installation of XCom right now.
+
 # TODO
 
 Back up files
