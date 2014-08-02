@@ -2,16 +2,20 @@
 
 """Long War installer for OS/X."""
 
-import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re
+import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, io
 import distutils.spawn
 
 def main():
-    parser = argparse.ArgumentParser(description='Install Long War on OS/X.')
-    parser.add_argument('filename', help='Filename for the Long War executable file')
-    parser.add_argument('--game', help='Directory to use for game installation')
-    parser.add_argument('--list', action='store_true', help='List mod backups and exit')
-    parser.add_argument('--uninstall', help='Uninstall given mod and exit')
+    parser = argparse.ArgumentParser(description='Install Long War on OS/X or Linux.')
     parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output')
+    parser.add_argument('--game', help='Directory to use for game installation')
+
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--apply', help='Filename for the Long War executable file', metavar='MOD_FILENAME')
+    group.add_argument('--list', action='store_true', help='List mod backups and exit')
+    group.add_argument('--patch-executable', nargs=2, metavar=('INPUT', 'OUTPUT'),
+                        help='Patch the given executable and exit')
+    group.add_argument('--uninstall', help='Uninstall given mod and exit', metavar='MOD_VERSION')
 
     args = parser.parse_args()
 
@@ -19,6 +23,12 @@ def main():
     logging.basicConfig(format='%(message)s', level=loglevel)
 
     try:
+        if args.patch_executable:
+            infile, outfile = args.patch_executable
+            execPatcher = ExecutablePatcher(infile, outfile)
+            execPatcher.patch()
+            return
+
         game = GameDirectory(args.game)
 
         if args.list:
@@ -29,7 +39,7 @@ def main():
             game.uninstall(args.uninstall)
             return
 
-        game.apply(args.filename)
+        game.apply(args.apply)
 
     except InnoExtractorNotFound:
         abort("""\
@@ -54,6 +64,9 @@ def main():
             to specify where to find it your game installation directory.""")
     except InnoExtractionFailed, e:
         abort(str(e))
+    except IOError, e:
+        # This is mildly hacky
+        abort("Can't access {}: {}".format(e.filename, e.strerror))
 
 def abort(errmsg):
     print textwrap.dedent(errmsg)
@@ -188,7 +201,10 @@ class PatchFile(object):
 
     def getGamePath(self, gameRoot):
         """Full path to where this file would belong in the game folder"""
-        return os.path.join(gameRoot, 'XCOMData', 'XEW', self.relativePath)
+        if self.relativePath.startswith('XComGame'):
+            return os.path.join(gameRoot, 'XCOMData', 'XEW', self.relativePath)
+        else:
+            return os.path.join(gameRoot, self.relativePath)
 
 class Backup(object):
     """Represents a single backup directory"""
@@ -242,6 +258,8 @@ class Patcher(object):
         if not os.path.isdir(parent):
             os.makedirs(parent)
         shutil.copy(gameLocation, backupLocation)
+
+        # Check for .uncompressed_size files
 
     def createBackupDirectory(self, version):
         self.backupRoot = self.directory.getBackupDirectory(version)
@@ -300,6 +318,36 @@ class GameDirectoryFinder(object):
                     result.append(match.group(1))
                     logging.debug('Found steam install directory %s!', match.group(1))
         return result
+
+class ExecutablePatcher(object):
+    """Code to patch an executable file. This code is pretty simple-minded and loads the whole file 
+    into memory (roughly 40MB)."""
+
+    PATCH_STRINGS = [
+        (u'''XComGame\Config\DefaultGameCore.ini''', u'''--------\Config\DefaultGameCore.ini'''),
+        (u'''XComGame\Config\DefaultLoadouts.ini''', u'''--------\Config\DefaultLoadouts.ini''')
+    ]
+
+    def __init__(self, infile, outfile):
+        self.infile = infile
+        self.outfile = outfile
+
+    def patch(self):
+        """Read file from self.infile, make replacements, and write changes to self.outfile, 
+        overwriting it if it exists."""
+        logging.info('Patching %s to %s', self.infile, self.outfile)
+        with open(self.infile, 'rb') as input:
+            contents = input.read()
+        with open(self.outfile, 'wb') as output:
+            for target, replacement in self.PATCH_STRINGS:
+                assert len(target) == len(replacement)
+                encoded = target.encode('utf-32-be')
+                num = contents.count(encoded)
+                if num <= 0:
+                    logging.warning('Could not find target string "%s" in input file %s', target, self.infile)
+                contents = contents.replace(encoded, replacement.encode('utf-32-be'))
+                logging.debug('Replaced %d occurences of %s in %s', num, target, self.infile)
+            output.write(contents)
 
 # Errors
 class InstallError(Exception): pass
