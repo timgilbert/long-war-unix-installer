@@ -324,8 +324,8 @@ class ExecutablePatcher(object):
     into memory (roughly 40MB)."""
 
     PATCH_STRINGS = [
-        (u'''XComGame\Config\DefaultGameCore.ini''', u'''--------\Config\DefaultGameCore.ini'''),
-        (u'''XComGame\Config\DefaultLoadouts.ini''', u'''--------\Config\DefaultLoadouts.ini''')
+        (u'''XComGame\Config\DefaultGameCore.ini''', u'''-PATCH--\Config\DefaultGameCore.ini'''),
+        (u'''XComGame\Config\DefaultLoadouts.ini''', u'''-PATCH--\Config\DefaultLoadouts.ini''')
     ]
 
     def __init__(self, infile, outfile):
@@ -335,19 +335,22 @@ class ExecutablePatcher(object):
     def patch(self):
         """Read file from self.infile, make replacements, and write changes to self.outfile, 
         overwriting it if it exists."""
-        logging.info('Patching %s to %s', self.infile, self.outfile)
         with open(self.infile, 'rb') as input:
             contents = input.read()
+        total = 0
         with open(self.outfile, 'wb') as output:
             for target, replacement in self.PATCH_STRINGS:
                 assert len(target) == len(replacement)
                 encoded = target.encode('utf-32-be')
-                num = contents.count(encoded)
-                if num <= 0:
+                count = contents.count(encoded)
+                if count <= 0:
                     logging.warning('Could not find target string "%s" in input file %s', target, self.infile)
+                    continue
+                total += count
                 contents = contents.replace(encoded, replacement.encode('utf-32-be'))
-                logging.debug('Replaced %d occurences of %s in %s', num, target, self.infile)
+                logging.debug('Replaced %d occurences of %s in %s', count, target, self.infile)
             output.write(contents)
+        logging.info('Patched %d strings in "%s" as "%s"', total, self.infile, self.outfile)
 
 # Errors
 class InstallError(Exception): pass
