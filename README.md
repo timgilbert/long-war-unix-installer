@@ -5,7 +5,7 @@ This is a work in progress, intended to make it easier for a user to install the
 This is basically intended to automate the process laid out in 
 [this forum post](http://forums.nexusmods.com/index.php?/topic/1918524-long-war-for-mac-osx-pointers-advice/#entry17035114).
 
-Note: this doesn't work yet!
+**Note: this doesn't work yet!**
 
 Note that Long War ships as a Windows installer. I'm writing this for OS/X, though I'm trying to 
 keep it platform independent so that it could run on Linux too in theory. It depends on Python 2.7
@@ -46,3 +46,8 @@ The most functional part of this is currently the ability to patch the executabl
 * Linux support (if needed)
 * Copy Localization files to MacOverrides inside .app
 * Optional param to set backup directory root? Might be more linux friendly
+* Chacksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
+
+## Bugs
+
+* Multiple backups grow the new files list each time
