@@ -1,14 +1,14 @@
 #! /usr/bin/python2.7
 
-"""Long War installer for OS/X."""
+'''Long War installer for OS/X.'''
 
-import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, io
+import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, json
 import distutils.spawn
 
 def main():
     parser = argparse.ArgumentParser(description='Install Long War on OS/X or Linux.')
     parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output')
-    parser.add_argument('--game', help='Directory to use for game installation')
+    parser.add_argument('--game-directory', help='Directory to use for game installation')
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--apply', help='Filename for the Long War executable file', metavar='MOD_FILENAME')
@@ -29,7 +29,7 @@ def main():
             execPatcher.patch()
             return
 
-        game = GameDirectory(args.game)
+        game = GameDirectory(args.game_directory)
 
         if args.list:
             game.list()
@@ -42,7 +42,7 @@ def main():
         game.apply(args.apply)
 
     except InnoExtractorNotFound:
-        abort("""\
+        abort('''\
             In order to run this program, you must first install innoextract.
             If you've got homebrew installed, you can run this command:
             
@@ -51,17 +51,17 @@ def main():
             If you aren't using homebrew, install innoextract from its homepage here: 
 
                 http://constexpr.org/innoextract/
-            """)
+            ''')
     except LongWarFileNotFound, e:
         abort("Can't open file '" + str(e) + "'!")
     except NoGameDirectoryFound, e:
-        abort("""\
+        abort('''\
             I couldn't figure out where your XCom install directory is. Please use the --game option
-            to specify where to find it.""")
+            to specify where to find it.''')
     except SteamDirectoryNotFound, e:
-        abort("""\
+        abort('''\
             I couldn't figure out where your steam installation is. Please use the --game option
-            to specify where to find it your game installation directory.""")
+            to specify where to find it your game installation directory.''')
     except InnoExtractionFailed, e:
         abort(str(e))
     except IOError, e:
@@ -73,46 +73,66 @@ def abort(errmsg):
     sys,exit(1)
 
 class GameDirectory(object):
-    """Class representing an installed game directory."""
-    BACKUP_DIRECTORY = 'Long-War-Backups'
+    '''Class representing an installed game directory.'''
 
     def __init__(self, root=None):
+        self.backups = {}
         if root is None:
             finder = GameDirectoryFinder()
             root = finder.find()
         if not os.path.isdir(root):
             logging.info("Can't open directory %s!", root)
             raise NoGameDirectoryFound()
+
         self.root = root
+        self.backupRoot = os.path.join(self.root, Backup.BACKUP_DIRECTORY)
+
         logging.debug('Game root directory located at %s', self.root)
-        self.backups = None
-        self.scan()
+        self._scanForBackups()
 
-    def getBackupDirectory(self, version):
-        return os.path.join(self.root, self.BACKUP_DIRECTORY, version)
-
-    def scan(self):
+    def _scanForBackups(self):
         logging.debug('Scanning for available backups...')
-        backupRoot = os.path.join(self.root, self.BACKUP_DIRECTORY)
-        if not os.path.isdir(backupRoot):
-            logging.debug("Can't find backup root %s...", backupRoot)
+        if not os.path.isdir(self.backupRoot):
+            logging.debug("Can't find backup root %s...", self.backupRoot)
             return
+        for dirname in os.listdir(self.backupRoot):
+            if dirname == 'dist':
+                continue # May use this location to store mod distrbution files later
+            metadata = os.path.join(dirname, Backup.METADATA_FILE)
+            if os.path.isfile(metadata):
+                self.backups[dirname] = Backup(dirname, self.backupRoot, self)
 
     def list(self):
         logging.debug('Listing backups...')
+        if not self.backups:
+            logging.info('No backups found in %s.', self.root)
+            return
+        for key in self.backups.keys.sorted():
+            logging.info('%s', self.backups[key])
 
     def apply(self, filename):
         extractor = Extractor(filename)
-        
-        patcher = Patcher(extractor.modname, self)
+        version = extractor.modname
+
+        if version in self.backups:
+            logging.debug('Overwriting old backup for mod %s', version)
+            backup = self.backups[version]
+        else:
+            self.backups[version] = Backup(version, self.backupRoot, self)
+
+        patcher = Patcher(version, self.backups[version], self.root)
         patcher.patch(extractor)
 
     def undo(self, patchname):
-        logging.debug('Undoing...')     
+        logging.debug('Undoing...')
+
+    def getGameFile(self, relativePath):
+        '''Given a relative file from a patch, return its location in the installed game tree'''
+        logging.debug('rel: %s', relativePath)
 
 
 class Extractor(object):
-    """Extracts files from the InnoInstall packages."""
+    '''Extracts files from the InnoInstall packages.'''
     SKIP_DIRECTORY = 'Long War Files'
     PATCH_DIRECTORY = r'XComGame'
 
@@ -124,38 +144,43 @@ class Extractor(object):
         self.tmp = None
 
     def extract(self):
-        """Extract the mod files to a temp directory, then scan them"""
+        '''Extract the mod files to a temp directory, then scan them'''
         self.validate()
         logging.info('Extracting mod "{}"...'.format(self.modname))
 
         self.tmp = tempfile.mkdtemp(prefix='LongWarInstaller_')
         logging.debug('Created temp directory %s', self.tmp)
         os.chdir(self.tmp)
-        command = [self.innoextract, '-e', '-s', self.filename]
-        logging.debug('Running command: %s', ' '.join(command))
+        command = [self.innoextract, '-e', '--progress=0', '--color=0', '-q', self.filename]
 
-        DEVNULL = open(os.devnull, 'w') # squash output
-        result = subprocess.call(command, stdout=DEVNULL, stderr=DEVNULL)
+        if logging.getLogger().level > logging.DEBUG:
+            DEVNULL = open(os.devnull, 'w') # squash output
+            stdout, stderr = DEVNULL, DEVNULL
+        else:
+            stdout, stderr = None, None
+
+        logging.debug('Running command: %s', ' '.join(command))
+        result = subprocess.call(command, stdout=stdout, stderr=stderr)
         if result != 0:
             raise InnoExtractionFailed('Running "{}" returned {}!'.format(' '.join(command), result))
 
-        self.scan()
+        self._scan()
 
     def cleanup(self):
-        """Remove the temp directory this was extracted into."""
+        '''Remove the temp directory this was extracted into.'''
         if self.tmp is not None:
             logging.debug('Removing %s', self.tmp)
             shutil.rmtree(self.tmp)
 
     def validate(self):
-        """Make sure the relevant stuff is present, else throw an error"""
+        '''Make sure the relevant stuff is present, else throw an error'''
         if self.innoextract is None:
             raise InnoExtractorNotFound()
         if not os.path.isfile(self.filename):
             raise LongWarFileNotFound(self.filename)
 
-    def scan(self):
-        """After extraction, look in extracted directory to find applicable files."""
+    def _scan(self):
+        '''After extraction, look in extracted directory to find applicable files.'''
         logging.debug('Scanning extracted mod...')
         
         self.auxilliaryFiles = []
@@ -173,13 +198,9 @@ class Extractor(object):
                     if re.search(r'txt|jpg$', filename):
                         patchfile = PatchFile(filename, root, self.tmp)
                         self.patchFiles.append(patchfile)
-                        #self.auxilliaryFiles.append(self._relativePath(root, filename))
-
-        # logging.debug('Aux: %s', self.auxilliaryFiles)
-        # logging.debug('Patch: %s', self.patchFiles)
 
 class PatchFile(object):
-    """Represents a single file to be patched from the mod"""
+    '''Represents a single file to be patched from the mod'''
     def __init__(self, filename, extractDir, extractRoot):
         self.filename = filename
         self.extractRoot = extractRoot
@@ -192,65 +213,58 @@ class PatchFile(object):
         return '<path:{}>'.format(self.relativePath)
         
     def getExtractedPath(self):
-        """Full path to the extracted location in the temp directory"""
+        '''Full path to the extracted location in the temp directory'''
         return self.extractedPath
 
     def getBackupPath(self, backupRoot):
-        """Full path to where this file would belong relative to the given backup folder"""
+        '''Full path to where this file would belong relative to the given backup folder'''
         return os.path.join(backupRoot, 'app', self.relativePath)
 
     def getGamePath(self, gameRoot):
-        """Full path to where this file would belong in the game folder"""
+        '''Full path to where this file would belong in the game folder'''
         if self.relativePath.startswith('XComGame'):
             return os.path.join(gameRoot, 'XCOMData', 'XEW', self.relativePath)
         else:
             return os.path.join(gameRoot, self.relativePath)
 
 class Backup(object):
-    """Represents a single backup directory"""
-    def __init__(self, directory):
-        pass
+    '''Represents a single backup directory'''
 
-class Patcher(object):
-    """Consolidates logic for applying a patch"""
+    # Directory to keep all the backups in, relative to game root
+    BACKUP_DIRECTORY = 'Long-War-Backups'
+    METADATA_FILE = 'metadata.json'
 
-    def __init__(self, version, directory):
+    def __init__(self, version, allBackupsRoot, gameDirectory):
         self.version = version
-        self.directory = directory
-        self.extractor = None
-        self.backupRoot = None
-        self.brandNewFiles = []
+        self.allBackupsRoot = allBackupsRoot
+        self.root = os.path.join(allBackupsRoot, version)
+        self.gameDirectory = gameDirectory
+        self.newFiles = []
+        self.metadataFile = os.path.join(self.root, self.METADATA_FILE)
+        self.active = False
+        self._loadMetadata()
 
-    def patch(self, extractor):
-        logging.debug('Applying patch %s...', self.version)
+    def _loadMetadata(self):
+        if not os.path.isfile(self.metadataFile):
+            logging.debug("Can't fild metadata file at %s", self.metadataFile)
+            return
+        with open(self.metadataFile) as input:
+            try:
+                self._deserialize(json.load(input, encoding='utf-8'))
+            except ValueError, e:
+                logging.error('Error loading json from %s: %s', self.metadataFile, e)
+                sys.exit(1)
 
-        self.extractor = extractor
-        extractor.extract()
-
-        self.createBackupDirectory(self.version)
-
-        self.patchExecutable()
-
-        for modFile in extractor.patchFiles:
-            self.backupFile(modFile)
-            #self.copyFile(modFile)
-
-        self.writeBackupMetadata()
-
-        extractor.cleanup()
-
-    def patchExecutable(self): 
-        logging.debug('Patching executable...')
-
-    def backupFile(self, patchfile):
+    def backupModFile(self, patchfile):
+        self._createBackupDirectory()
         replacementLocation = patchfile.getExtractedPath()
-        backupLocation = patchfile.getBackupPath(self.backupRoot)
-        gameLocation = patchfile.getGamePath(self.directory.root)
+        backupLocation = patchfile.getBackupPath(self.root)
+        gameLocation = patchfile.getGamePath(self.gameDirectory.root)
 
         # Check to see whether the file exists in the game directory
         if not os.path.exists(gameLocation):
             logging.debug("File %s doesn't exist in game directory, marking as new", gameLocation)
-            self.brandNewFiles.append(patchfile)
+            self.newFiles.append(patchfile.getExtractedPath())
             return
 
         logging.debug('Backing up %s to %s...', gameLocation, backupLocation)
@@ -261,26 +275,68 @@ class Patcher(object):
 
         # Check for .uncompressed_size files
 
-    def createBackupDirectory(self, version):
-        self.backupRoot = self.directory.getBackupDirectory(version)
-        if os.path.isdir(self.backupRoot):
-            # Already exists
-            return
-        os.makedirs(self.backupRoot)
-        logging.debug('Created new backup directory %s', self.backupRoot)
+    def _serialize(self):
+        '''Simple-minded serialization'''
+        return {
+            'active': self.active,
+            'newFiles': self.newFiles
+        }
 
-    def copyFile(self, filename):
-        logging.debug('Copying file %s...', filename)
+    def _deserialize(self, decodedJson):
+        '''Simple-minded serialization'''
+        for att in ['active', 'newFiles']:
+            setattr(self, json[att])
 
     def writeBackupMetadata(self):
         logging.debug('Writing backup metadata...')
-        logging.debug('New files: %s', self.brandNewFiles)
+        with open(os.path.join(self.root, self.METADATA_FILE), 'w') as output:
+            json.dump(self._serialize(), output, encoding='utf-8', 
+                      indent=4, sort_keys=True, separators=(',', ': '))
+        #logging.debug('New files: %s', self.brandNewFiles)
+
+    def _createBackupDirectory(self):
+        if not os.path.isdir(self.root):
+            logging.debug('Creating new backup directory at %s', self.root)
+            os.makedirs(self.root)
+
+class Patcher(object):
+    '''Consolidates logic for applying a patch'''
+
+    def __init__(self, version, backup, gameRoot):
+        self.version = version
+        self.gameRoot = gameRoot
+        self.backup = backup
+        self.extractor = None
+        self.brandNewFiles = []
+
+    def patch(self, extractor):
+        logging.debug('Applying patch %s...', self.version)
+        self.backup.active = True # There's probably a better way to do this
+
+        self.extractor = extractor
+        extractor.extract()
+
+        self.patchExecutable()
+
+        for modFile in extractor.patchFiles:
+            self.backup.backupModFile(modFile)
+            #self.copyFile(modFile)
+
+        self.backup.writeBackupMetadata()
+
+        extractor.cleanup()
+
+    def patchExecutable(self): 
+        logging.debug('Patching executable...')
+
+    def copyFile(self, filename):
+        logging.debug('Copying file %s...', filename)
 
 # TODO: refactor into platform-specific subclasses
 class GameDirectoryFinder(object):
     STEAM_LIBRARY_ROOT = '~/Library/Application Support/Steam' 
     STEAM_CONFIG_FILE = 'config/config.vdf'
-    GAME_ROOT = 'SteamApps/common/XCom-Enemy-Unknown-TEST'
+    GAME_ROOT = 'SteamApps/common/XCom-Enemy-Unknown-TEST' # TODO change this for distribution
 
     def __init__(self):
         self.steamRoot = os.path.expanduser(self.STEAM_LIBRARY_ROOT)
@@ -302,8 +358,8 @@ class GameDirectoryFinder(object):
         return allRoots
 
     def _readSteamConfig(self):
-        """Grub through the steam config files to find alternate install directories. This is very 
-        simple-minded regex parsing which could easily fail, but it's just a heuristic."""
+        '''Grub through the steam config files to find alternate install directories. This is very 
+        simple-minded regex parsing which could easily fail, but it's just a heuristic.'''
         result = []
 
         config = os.path.join(self.steamRoot, self.STEAM_CONFIG_FILE)
@@ -320,8 +376,8 @@ class GameDirectoryFinder(object):
         return result
 
 class ExecutablePatcher(object):
-    """Code to patch an executable file. This code is pretty simple-minded and loads the whole file 
-    into memory (roughly 40MB)."""
+    '''Code to patch an executable file. This code is pretty simple-minded and loads the whole file 
+    into memory (roughly 40MB).'''
 
     PATCH_STRINGS = [
         (u'''XComGame\Config\DefaultGameCore.ini''', u'''-PATCH--\Config\DefaultGameCore.ini'''),
@@ -333,8 +389,8 @@ class ExecutablePatcher(object):
         self.outfile = outfile
 
     def patch(self):
-        """Read file from self.infile, make replacements, and write changes to self.outfile, 
-        overwriting it if it exists."""
+        '''Read file from self.infile, make replacements, and write changes to self.outfile, 
+        overwriting it if it exists.'''
         with open(self.infile, 'rb') as input:
             contents = input.read()
         total = 0

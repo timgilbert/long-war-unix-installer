@@ -19,19 +19,25 @@ OS/X `homebrew` users can install it via:
 This only works for the Steam installation of XCom: Enemy Within right now. Getting it to work for 
 Enemy Unknown or other distributions shouldn't be too hard to do.
 
+## Usage
+
 Docs are forthcoming. Meanwhile, `./install.py --help` works. Basically once you've downloaded the mod
 somewhere, do this:
 
-    ./install.py "$HOME/Downloads/Long War 3 EW Beta 12-88-3-0b12.exe" -d
+    ./install.py --apply "$HOME/Downloads/Long War 3 EW Beta 12-88-3-0b12.exe" -d
+
+The most functional part of this is currently the ability to patch the executable file.
+
+	./install.py --patch-executable "XCOM Enemy Within" "XCOM Enemy Within.patched" -d
 
 # TODO
 
 * Docs / man page
 * Apply patches from mod! ;)
-* Mark app files / non-app files distinctly (for readmes, .jpgs, etc)
-* Patch executables
 * Undo and revert to backup
 * Validate that game is EW, not EU, or better yet handle EU-only installs
 * Validate/update/undo hosts file updates to guard against phone home resets
 * wxPython (etc) GUI 
 * Linux support (if needed)
+* Copy Localization files to MacOverrides inside .app
+* Optional param to set backup directory root? Might be more linux friendly
