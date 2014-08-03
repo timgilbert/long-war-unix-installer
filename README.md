@@ -19,6 +19,10 @@ OS/X `homebrew` users can install it via:
 This only works for the Steam installation of XCom: Enemy Within right now. Getting it to work for 
 Enemy Unknown or other distributions shouldn't be too hard to do.
 
+Note: for detailed information about XCom modding, please see 
+[the excellent Modding Tools page](http://wiki.tesnexus.com/index.php/Modding_Tools_-_XCOM:EU_2012) 
+on the Nexus wiki.
+
 ## Usage
 
 Docs are forthcoming. Meanwhile, `./install.py --help` works. Basically once you've downloaded the mod
