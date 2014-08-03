@@ -46,7 +46,7 @@ The most functional part of this is currently the ability to patch the executabl
 * Linux support (if needed)
 * Copy Localization files to MacOverrides inside .app
 * Optional param to set backup directory root? Might be more linux friendly
-* Chacksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
+* Checksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
 
 ## Bugs
 
