@@ -2,7 +2,7 @@
 
 '''Long War installer for OS/X.'''
 
-import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, json
+import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, json, datetime
 import distutils.spawn
 
 def main():
@@ -11,6 +11,7 @@ def main():
     parser.add_argument('--game-directory', help='Directory to use for game installation')
 
     group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--delete', help='Mod ID to delete backup for', metavar='MOD_VERSION')
     group.add_argument('--apply', help='Filename for the Long War executable file', metavar='MOD_FILENAME')
     group.add_argument('--list', action='store_true', help='List mod backups and exit')
     group.add_argument('--patch-executable', nargs=2, metavar=('INPUT', 'OUTPUT'),
@@ -31,13 +32,14 @@ def main():
 
         game = GameDirectory(args.game_directory)
 
+        if args.delete:
+            game.deleteBackupTree(args.delete) ; return
+
         if args.list:
-            game.list()
-            return
+            game.list() ; return
 
         if args.uninstall:
-            game.uninstall(args.uninstall)
-            return
+            game.uninstall(args.uninstall) ; return
 
         game.apply(args.apply)
 
@@ -62,6 +64,9 @@ def main():
         abort('''\
             I couldn't figure out where your steam installation is. Please use the --game option
             to specify where to find it your game installation directory.''')
+    except BackupVersionNotFound, e:
+        abort('''\
+            Sorry, version {version} not found. Use --list to list the available versions.'''.format(version=e))
     except InnoExtractionFailed, e:
         abort(str(e))
     except IOError, e:
@@ -98,7 +103,8 @@ class GameDirectory(object):
         for dirname in os.listdir(self.backupRoot):
             if dirname == 'dist':
                 continue # May use this location to store mod distrbution files later
-            metadata = os.path.join(dirname, Backup.METADATA_FILE)
+            metadata = os.path.join(self.backupRoot, dirname, Backup.METADATA_FILE)
+            logging.debug('b: %s', metadata)
             if os.path.isfile(metadata):
                 self.backups[dirname] = Backup(dirname, self.backupRoot, self)
 
@@ -107,7 +113,7 @@ class GameDirectory(object):
         if not self.backups:
             logging.info('No backups found in %s.', self.root)
             return
-        for key in self.backups.keys.sorted():
+        for key in sorted(self.backups.keys()):
             logging.info('%s', self.backups[key])
 
     def apply(self, filename):
@@ -122,6 +128,12 @@ class GameDirectory(object):
 
         patcher = Patcher(version, self.backups[version], self.root)
         patcher.patch(extractor)
+
+    def deleteBackupTree(self, version):
+        if version not in self.backups:
+            raise BackupVersionNotFound(version)
+        self.backups[version].deleteBackupTree()
+        logging.info('Deleted backup "%s"', version)
 
     def undo(self, patchname):
         logging.debug('Undoing...')
@@ -241,8 +253,11 @@ class Backup(object):
         self.gameDirectory = gameDirectory
         self.newFiles = []
         self.metadataFile = os.path.join(self.root, self.METADATA_FILE)
-        self.active = False
+        self.applied = False
         self._loadMetadata()
+
+    def __str__(self):
+        return '{self.version}: applied at {self.applied}'.format(self=self)
 
     def _loadMetadata(self):
         if not os.path.isfile(self.metadataFile):
@@ -251,12 +266,12 @@ class Backup(object):
         with open(self.metadataFile) as input:
             try:
                 self._deserialize(json.load(input, encoding='utf-8'))
-            except ValueError, e:
-                logging.error('Error loading json from %s: %s', self.metadataFile, e)
+            except (ValueError, KeyError), e:
+                logging.error('Error loading json from %s: %s, %s', self.metadataFile, e.__class__, e)
                 sys.exit(1)
 
     def backupModFile(self, patchfile):
-        self._createBackupDirectory()
+        self._touch()
         replacementLocation = patchfile.getExtractedPath()
         backupLocation = patchfile.getBackupPath(self.root)
         gameLocation = patchfile.getGamePath(self.gameDirectory.root)
@@ -264,7 +279,7 @@ class Backup(object):
         # Check to see whether the file exists in the game directory
         if not os.path.exists(gameLocation):
             logging.debug("File %s doesn't exist in game directory, marking as new", gameLocation)
-            self.newFiles.append(patchfile.getExtractedPath())
+            self.newFiles.append(patchfile.filename)
             return
 
         logging.debug('Backing up %s to %s...', gameLocation, backupLocation)
@@ -275,17 +290,25 @@ class Backup(object):
 
         # Check for .uncompressed_size files
 
+    def deleteBackupTree(self):
+        '''Remove entire backup tree'''
+        shutil.rmtree(self.root)
+
+    def _touch(self):
+        self._createBackupDirectory()
+        self.applied = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+
     def _serialize(self):
         '''Simple-minded serialization'''
         return {
-            'active': self.active,
+            'applied': self.applied,
             'newFiles': self.newFiles
         }
 
     def _deserialize(self, decodedJson):
         '''Simple-minded serialization'''
-        for att in ['active', 'newFiles']:
-            setattr(self, json[att])
+        for att in ['applied', 'newFiles']:
+            setattr(self, att, decodedJson[att])
 
     def writeBackupMetadata(self):
         logging.debug('Writing backup metadata...')
@@ -311,7 +334,6 @@ class Patcher(object):
 
     def patch(self, extractor):
         logging.debug('Applying patch %s...', self.version)
-        self.backup.active = True # There's probably a better way to do this
 
         self.extractor = extractor
         extractor.extract()
@@ -415,5 +437,6 @@ class LongWarFileNotFound(InstallError): pass
 class InnoExtractionFailed(InstallError): pass
 class SteamDirectoryNotFound(InstallError): pass
 class NoGameDirectoryFound(InstallError): pass
+class BackupVersionNotFound(InstallError): pass
 
 if __name__ == '__main__': main()
