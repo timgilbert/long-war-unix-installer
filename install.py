@@ -79,6 +79,11 @@ def abort(errmsg):
 
 class GameDirectory(object):
     '''Class representing an installed game directory.'''
+    # Location relative the the game install directory of the application bundle directory
+    APP_BUNDLE = 'XCOM Enemy Unknown.app'
+    # Relative location of the actual chmod +x executable
+    # I guess I could use os.path.join here, but it's os/x specific
+    EXECUTABLE = 'Contents/MacOS/XCOM Enemy Unknown' 
 
     def __init__(self, root=None):
         self.backups = {}
@@ -91,6 +96,7 @@ class GameDirectory(object):
 
         self.root = root
         self.backupRoot = os.path.join(self.root, Backup.BACKUP_DIRECTORY)
+        self.appBundleRoot = os.path.join(self.root, GameDirectory.APP_BUNDLE)
 
         logging.debug('Game root directory located at %s', self.root)
         self._scanForBackups()
@@ -126,7 +132,7 @@ class GameDirectory(object):
         else:
             self.backups[version] = Backup(version, self.backupRoot, self)
 
-        patcher = Patcher(version, self.backups[version], self.root)
+        patcher = Patcher(version, self.backups[version])
         patcher.patch(extractor)
 
     def deleteBackupTree(self, version):
@@ -137,6 +143,10 @@ class GameDirectory(object):
 
     def undo(self, patchname):
         logging.debug('Undoing...')
+
+    def getAppBundlePath(self, relativePath):
+        '''Given a relative file from a patch, return its location in the installed game tree'''
+        return os.path.join(self.root, GameDirectory.APP_BUNDLE, relativePath)
 
     def getGameFile(self, relativePath):
         '''Given a relative file from a patch, return its location in the installed game tree'''
@@ -244,15 +254,19 @@ class Backup(object):
 
     # Directory to keep all the backups in, relative to game root
     BACKUP_DIRECTORY = 'Long-War-Backups'
+    # Directory in the backup tree representing files backed up from the "xcomm.app" directory
+    # in the installed game directory (OS/X)
+    APP_BUNDLE_DIRECTORY = 'app-bundle'
     METADATA_FILE = 'metadata.json'
 
     def __init__(self, version, allBackupsRoot, gameDirectory):
         self.version = version
         self.allBackupsRoot = allBackupsRoot
         self.root = os.path.join(allBackupsRoot, version)
+        self.appBundle = os.path.join(self.root, Backup.APP_BUNDLE_DIRECTORY)
         self.gameDirectory = gameDirectory
         self.newFiles = []
-        self.metadataFile = os.path.join(self.root, self.METADATA_FILE)
+        self.metadataFile = os.path.join(self.root, Backup.METADATA_FILE)
         self.applied = False
         self._loadMetadata()
 
@@ -282,21 +296,45 @@ class Backup(object):
             self.newFiles.append(patchfile.filename)
             return
 
-        logging.debug('Backing up %s to %s...', gameLocation, backupLocation)
-        parent = os.path.dirname(backupLocation)
-        if not os.path.isdir(parent):
-            os.makedirs(parent)
-        shutil.copy(gameLocation, backupLocation)
+        self._copyFile(gameLocation, backupLocation)
 
         # Check for .uncompressed_size files
+    
+    def _copyFile(self, original, destination):
+        '''Copy original to destination, creating directories if need be'''
+        logging.debug('Backing up %s to %s...', original, destination)
+        parent = os.path.dirname(destination)
+        if not os.path.isdir(parent):
+            os.makedirs(parent)
+        shutil.copy(original, destination)
+    
+    def backupAppBundleFile(self, patchfile):
+        '''Given a file relative to the app bundle root, back it up in the backup tree'''
+        original = self.gameDirectory.getAppBundlePath(patchfile)
+        backup = self.getAppBundleBackupLocation(GameDirectory.EXECUTABLE)
+        self._copyFile(original, backup)
+
+    def getAppBundleBackupLocation(self, relativePath):
+        return os.path.join(self.root, Backup.APP_BUNDLE_DIRECTORY, relativePath)
+
+    def backupExecutable(self):
+        logging.debug('Backing up executable')
+        self.backupAppBundleFile(GameDirectory.EXECUTABLE)
 
     def deleteBackupTree(self):
         '''Remove entire backup tree'''
         shutil.rmtree(self.root)
 
+    def writeBackupMetadata(self):
+        logging.debug('Writing backup metadata...')
+        with open(os.path.join(self.root, self.METADATA_FILE), 'w') as output:
+            json.dump(self._serialize(), output, encoding='utf-8', 
+                      indent=4, sort_keys=True, separators=(',', ': '))
+        #logging.debug('New files: %s', self.brandNewFiles)
+
     def _touch(self):
         self._createBackupDirectory()
-        self.applied = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        self.applied = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     def _serialize(self):
         '''Simple-minded serialization'''
@@ -310,24 +348,19 @@ class Backup(object):
         for att in ['applied', 'newFiles']:
             setattr(self, att, decodedJson[att])
 
-    def writeBackupMetadata(self):
-        logging.debug('Writing backup metadata...')
-        with open(os.path.join(self.root, self.METADATA_FILE), 'w') as output:
-            json.dump(self._serialize(), output, encoding='utf-8', 
-                      indent=4, sort_keys=True, separators=(',', ': '))
-        #logging.debug('New files: %s', self.brandNewFiles)
-
     def _createBackupDirectory(self):
         if not os.path.isdir(self.root):
             logging.debug('Creating new backup directory at %s', self.root)
             os.makedirs(self.root)
+        if not os.path.isdir(self.appBundle):
+            logging.debug('Creating new app bundle backup directory at %s', self.appBundle)
+            os.makedirs(self.appBundle)
 
 class Patcher(object):
     '''Consolidates logic for applying a patch'''
 
-    def __init__(self, version, backup, gameRoot):
+    def __init__(self, version, backup):
         self.version = version
-        self.gameRoot = gameRoot
         self.backup = backup
         self.extractor = None
         self.brandNewFiles = []
@@ -338,11 +371,11 @@ class Patcher(object):
         self.extractor = extractor
         extractor.extract()
 
-        self.patchExecutable()
-
         for modFile in extractor.patchFiles:
             self.backup.backupModFile(modFile)
             #self.copyFile(modFile)
+
+        self.patchExecutable()
 
         self.backup.writeBackupMetadata()
 
@@ -350,6 +383,7 @@ class Patcher(object):
 
     def patchExecutable(self): 
         logging.debug('Patching executable...')
+        self.backup.backupExecutable()
 
     def copyFile(self, filename):
         logging.debug('Copying file %s...', filename)
@@ -361,14 +395,14 @@ class GameDirectoryFinder(object):
     GAME_ROOT = 'SteamApps/common/XCom-Enemy-Unknown-TEST' # TODO change this for distribution
 
     def __init__(self):
-        self.steamRoot = os.path.expanduser(self.STEAM_LIBRARY_ROOT)
+        self.steamRoot = os.path.expanduser(GameDirectoryFinder.STEAM_LIBRARY_ROOT)
         if not os.path.isdir(self.steamRoot):
             logging.debug("Can't open steam root at %s", self.steamRoot)
             raise SteamDirectoryNotFound()
 
     def find(self):
         for root in self._findSteamInstallRoots():
-            guess = os.path.join(root, self.GAME_ROOT)
+            guess = os.path.join(root, GameDirectoryFinder.GAME_ROOT)
             if os.path.isdir(guess):
                 return guess
             #logging.debug("No game directory found in %s", guess)
@@ -384,7 +418,7 @@ class GameDirectoryFinder(object):
         simple-minded regex parsing which could easily fail, but it's just a heuristic.'''
         result = []
 
-        config = os.path.join(self.steamRoot, self.STEAM_CONFIG_FILE)
+        config = os.path.join(self.steamRoot, GameDirectoryFinder.STEAM_CONFIG_FILE)
         if not os.path.exists(config):
             logging.debug("Warning: can't open steam config file %s to find alternate install directories", config)
             return result
@@ -417,7 +451,7 @@ class ExecutablePatcher(object):
             contents = input.read()
         total = 0
         with open(self.outfile, 'wb') as output:
-            for target, replacement in self.PATCH_STRINGS:
+            for target, replacement in ExecutablePatcher.PATCH_STRINGS:
                 assert len(target) == len(replacement)
                 encoded = target.encode('utf-32-be')
                 count = contents.count(encoded)
