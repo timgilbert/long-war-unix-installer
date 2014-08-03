@@ -94,10 +94,11 @@ class GameDirectory(object):
     # Relative location of the actual chmod +x executable
     # I guess I could use os.path.join here, but it's os/x specific
     EXECUTABLE = 'Contents/MacOS/XCOM Enemy Unknown'
-    MOD_FILE_ROOT = os.path.join('XCOMData', 'XEW')
+    MOD_FILE_ROOT = 'XCOMData/XEW'
     COOKED_PC = 'CookedPCConsole'
     LOCALIZATION = 'Localization'
     UNCOMPRESSED_SIZE = '.uncompressed_size'
+    OVERRIDE_DIRECTORY = 'Contents/Resources/MacOverrides'
 
     def __init__(self, root=None):
         self.backups = {}
@@ -297,6 +298,7 @@ class Backup(object):
         self.modFileRoot = os.path.join(self.root, Backup.MOD_FILE_DIRECTORY)
         self.gameDirectory = gameDirectory
         self.newFiles = []
+        self.newAppBundleFiles = []
         self.metadataFile = os.path.join(self.root, Backup.METADATA_FILE)
         self.applied = False
         self.totalModFiles = 0
@@ -340,6 +342,17 @@ class Backup(object):
                 # This is slightly dirty
                 self._copyFile(uncompressed, backupLocation + GameDirectory.UNCOMPRESSED_SIZE)
 
+    def backupOverrideFile(self, patchfile):
+        '''Back up a localization file to the override directory inside the .app bundle'''
+        filename = os.path.basename(patchfile.extractedPath)
+        relativePath = os.path.join(GameDirectory.OVERRIDE_DIRECTORY, filename)
+        gameLocation = self.gameDirectory.getAppBundlePath(relativePath)
+        if os.path.isfile(gameLocation):
+            logging.debug('Backing up override file %s', gameLocation)
+            self.backupAppBundleFile(relativePath)
+        else:
+            logging.debug('Marking override file %s as new...', relativePath)
+            self.newAppBundleFiles.append(relativePath)
     
     def _copyFile(self, original, destination):
         '''Copy original to destination, creating directories if need be'''
@@ -349,10 +362,10 @@ class Backup(object):
             os.makedirs(parent)
         shutil.copy(original, destination)
     
-    def backupAppBundleFile(self, patchfile):
+    def backupAppBundleFile(self, relativePath):
         '''Given a file relative to the app bundle root, back it up in the backup tree'''
-        original = self.gameDirectory.getAppBundlePath(patchfile)
-        backup = self.getAppBundleBackupLocation(GameDirectory.EXECUTABLE)
+        original = self.gameDirectory.getAppBundlePath(relativePath)
+        backup = self.getAppBundleBackupLocation(relativePath)
         self.totalAppBundleFiles += 1
         self._copyFile(original, backup)
 
@@ -453,7 +466,11 @@ class Patcher(object):
 
         for modFile in extractor.patchFiles:
             self.backup.backupModFile(modFile)
-            self.copyFile(modFile)
+            self.copyModFile(modFile)
+            if modFile.isOverride:
+                logging.debug('Copying override to override directory')
+                self.backup.backupOverrideFile(modFile)
+                self.copyOverrideFile(modFile)
 
         self.patchExecutable()
 
@@ -466,8 +483,11 @@ class Patcher(object):
         logging.debug('Patching executable...')
         self.backup.backupExecutable()
 
-    def copyFile(self, filename):
-        logging.debug('Copying file %s...', filename)
+    def copyModFile(self, patchfile):
+        logging.debug('Copying file %s...', patchfile)
+
+    def copyOverrideFile(self, patchfile):
+        logging.debug('Copying override file %s...', patchfile)
 
 # TODO: refactor into platform-specific subclasses
 class GameDirectoryFinder(object):
@@ -486,7 +506,6 @@ class GameDirectoryFinder(object):
             guess = os.path.join(root, GameDirectoryFinder.GAME_ROOT)
             if os.path.isdir(guess):
                 return guess
-            #logging.debug("No game directory found in %s", guess)
         raise NoGameDirectoryFound()
 
     def _findSteamInstallRoots(self):
