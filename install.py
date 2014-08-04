@@ -294,7 +294,7 @@ class Backup(object):
         self.version = version
         self.allBackupsRoot = allBackupsRoot
         self.root = os.path.join(allBackupsRoot, version)
-        self.appBundle = os.path.join(self.root, Backup.APP_BUNDLE_DIRECTORY)
+        self.appBundleRoot = os.path.join(self.root, Backup.APP_BUNDLE_DIRECTORY)
         self.modFileRoot = os.path.join(self.root, Backup.MOD_FILE_DIRECTORY)
         self.gameDirectory = gameDirectory
         self.newFiles = []
@@ -388,40 +388,38 @@ class Backup(object):
         #logging.debug('New files: %s', self.brandNewFiles)
 
     def uninstall(self):
-        # XXX Clean up nomenclature and refactor for clarity
         logging.debug('Reverting app bundle files from %s to %s', self.version, self.gameDirectory.root)
-        for root, dirs, files in os.walk(self.appBundle):
+        for root, dirs, files in os.walk(self.appBundleRoot):
             for filename in files:
                 if filename in Backup.IGNORE_FILES_IN_BACKUP:
                     continue
-                backupPath = self.getAppBundleBackupLocation(filename)
-                relativePath = self._getRelativeAppBundlePath(backupPath)
+                absoluteBackupPath = os.path.join(root, filename)
+                relativePath = self._getRelativeAppBundlePath(absoluteBackupPath)
                 gamePath = self.gameDirectory.getAppBundlePath(relativePath)
-                # logging.debug('abs  %s', absolutePath)
-                # logging.debug('rel  %s', relativePath)
-                # logging.debug('game %s', gamePath)
-                logging.debug('Restoring app bundle path %s to %s', backupPath, gamePath)
+                logging.debug('Restoring app bundle path %s to %s', absoluteBackupPath, gamePath)
+
         logging.debug('Reverting mod files from %s to %s', self.version, self.gameDirectory.root)
         for root, dirs, files in os.walk(self.modFileRoot):
             for filename in files:
                 if filename in Backup.IGNORE_FILES_IN_BACKUP:
                     continue
-                backupPath = self._getBackupModPath(filename)
+                backupPath = os.path.join(root, filename)
                 relativePath = self._getRelativeModFilePath(backupPath)
-                gamePath = self.gameDirectory.getGameFilePath(relativePath) # XXX Broken
+                gamePath = self.gameDirectory.getModFilePath(relativePath)
+                # logging.debug('#B %s\n#R %s\n#G %s', backupPath, relativePath, gamePath)
                 logging.debug('Restoring mod file path %s to %s', backupPath, gamePath)
+
+        logging.debug('Removing new files added in patch')
+        for relativePath in self.newFiles:
+            addedPath = self.gameDirectory.getModFilePath(relativePath)
+            logging.debug('Removing mod file %s', addedPath)
 
 
     def _getRelativeAppBundlePath(self, absolutePath):
-        return self._getRelativePath(Backup.APP_BUNDLE_DIRECTORY, absolutePath)
+        return getRelativePath(absolutePath, self.appBundleRoot)
 
     def _getRelativeModFilePath(self, absolutePath):
-        return self._getRelativePath(Backup.MOD_FILE_DIRECTORY, absolutePath)
-
-    def _getRelativePath(self, relativeRoot, absolutePath):
-        # This is slightly dirty
-        absolutePath = absolutePath.replace(os.path.join(self.root, Backup.APP_BUNDLE_DIRECTORY) + os.sep, '')
-        return os.path.join(GameDirectory.APP_BUNDLE, absolutePath)
+        return getRelativePath(absolutePath, self.modFileRoot)
 
     def _getBackupModPath(self, relativePath):
         '''Full path to where this file would belong relative to the given backup folder'''
@@ -432,9 +430,9 @@ class Backup(object):
         if not os.path.isdir(self.root):
             logging.debug('Creating new backup directory at %s', self.root)
             os.makedirs(self.root)
-        if not os.path.isdir(self.appBundle):
-            logging.debug('Creating new app bundle backup directory at %s', self.appBundle)
-            os.makedirs(self.appBundle)
+        if not os.path.isdir(self.appBundleRoot):
+            logging.debug('Creating new app bundle backup directory at %s', self.appBundleRoot)
+            os.makedirs(self.appBundleRoot)
         self.applied = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     def _serialize(self):

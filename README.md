@@ -36,6 +36,7 @@ The most functional part of this is currently the ability to patch the executabl
 
 # TODO
 
+* Add install.log and uninstall.log files to backup directory
 * Interactive mode for script (y/n for overwrting files, etc)
 * Docs / man page
 * Apply patches from mod! ;)
