@@ -3,11 +3,11 @@
 '''Long War installer for OS/X.'''
 
 import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, json, datetime
-import distutils.spawn
+import logging.handlers, distutils.spawn
 
 def main():
     parser = argparse.ArgumentParser(description='Install Long War on OS/X or Linux.')
-    parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output')
+    parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output on console')
     parser.add_argument('--game-directory', help='Directory to use for game installation')
 
     group = parser.add_mutually_exclusive_group(required=True)
@@ -74,8 +74,8 @@ def main():
         abort("Can't access {}: {}".format(e.filename, e.strerror))
 
 def abort(errmsg):
-    print textwrap.dedent(errmsg)
-    sys,exit(1)
+    logging.error(textwrap.dedent(errmsg))
+    sys.exit(1)
 
 def isDebug():
     '''Return true if logging is at debug or lower'''
@@ -141,11 +141,14 @@ class GameDirectory(object):
         version = extractor.modname
 
         if version in self.backups:
+            # Could quit with an error here
             logging.debug('Overwriting old backup for mod %s', version)
-            backup = self.backups[version]
+            self.activeBackup = self.backups[version]
         else:
             self.backups[version] = Backup(version, self.backupRoot, self)
+        self.activeBackup = self.backups[version]
 
+        self.backups[version].setupInstallLog()
         patcher = Patcher(version, self.backups[version])
         patcher.patch(extractor)
 
@@ -319,6 +322,23 @@ class Backup(object):
                 logging.error('Error loading json from %s: %s, %s', self.metadataFile, e.__class__, e)
                 sys.exit(1)
 
+    def setupInstallLog(self):
+        '''Begin logging messages to the install.log file for this backup'''
+        self._setupFileLog(os.path.join(self.root, 'install.log'))
+
+    def setupUninstallLog(self):
+        '''Begin logging messages to the install.log file for this backup'''
+        self._setupFileLog(os.path.join(self.root, 'uninstall.log'))
+
+    def _setupFileLog(self, logPath):
+        self._touch()
+        handler = logging.handlers.RotatingFileHandler(logPath, backupCount=9)
+        handler.doRollover() # Hacky but seems to work, we get a new file per execution
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)-7s %(message)s'))
+        rootLogger = logging.getLogger()
+        rootLogger.addHandler(handler)
+
     def backupModFile(self, patchfile):
         self._touch()
         backupLocation = self._getBackupModPath(patchfile.relativePath)
@@ -388,6 +408,7 @@ class Backup(object):
         #logging.debug('New files: %s', self.brandNewFiles)
 
     def uninstall(self):
+        self.setupUninstallLog()
         logging.debug('Reverting app bundle files from %s to %s', self.version, self.gameDirectory.root)
         for root, dirs, files in os.walk(self.appBundleRoot):
             for filename in files:

@@ -5,7 +5,8 @@ This is a work in progress, intended to make it easier for a user to install the
 This is basically intended to automate the process laid out in 
 [this forum post](http://forums.nexusmods.com/index.php?/topic/1918524-long-war-for-mac-osx-pointers-advice/#entry17035114).
 
-**Note: this doesn't work yet!**
+**Note: this doesn't work yet!** Also, this script is still in active development, so while I 
+welcome pull requests, please check with me first.
 
 Note that Long War ships as a Windows installer. I'm writing this for OS/X, though I'm trying to 
 keep it platform independent so that it could run on Linux too in theory. It depends on Python 2.7
@@ -34,9 +35,8 @@ The most functional part of this is currently the ability to patch the executabl
 
 	./install.py --patch-executable "XCOM Enemy Within" "XCOM Enemy Within.patched" -d
 
-# TODO
+## TODO
 
-* Add install.log and uninstall.log files to backup directory
 * Interactive mode for script (y/n for overwrting files, etc)
 * Docs / man page
 * Apply patches from mod! ;)
