@@ -37,17 +37,21 @@ The most functional part of this is currently the ability to patch the executabl
 
 ## TODO
 
-* Interactive mode for script (y/n for overwrting files, etc)
-* Docs / man page
 * Apply patches from mod! ;)
-* Validate that game is EW, not EU, or better yet handle EU-only installs
-* Validate/update/undo hosts file updates to guard against phone home resets
-* wxPython (etc) GUI 
-* Linux support (if needed)
-* Copy Localization files to MacOverrides inside .app
-* Optional param to set backup directory root? Might be more linux friendly
-* Checksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
+* Docs / man page
 * Add --backup flag to back up a directory without overwriting files
+* Interactive mode for script (y/n for overwriting files, etc)
+* Validate that game is EW, not EU, or better yet handle EU-only installs
+* `homebrew` install under `tap/games`?
+
+### Blue Sky TODO
+* Checksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
+** Checksum entire insalled game tree, and verify it after backups
+* wxPython (etc) GUI 
+* Validate/update/undo hosts file updates to guard against phone home resets
+* Linux support
+** Some refactoring into platform-specific subclasses or whatnot
+* Handle Mac App Store installs
 
 ## Bugs
 
