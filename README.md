@@ -79,3 +79,17 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 
 * Multiple backups grow the new files list each time
 * Root level files are installed in XCOMData/XEW instead of at the root
+
+# State of the Mod
+
+As I write this in early August 2014, users have reported several bugs after applying Long War to
+their XCom: EW installations on OS/X. I don't know much about modding and probably can't help with 
+these issues; I'm just focused on getting the installer script to work. Please see 
+[the official Long War mod forum](http://forums.nexusmods.com/index.php?/forum/665-xcom-file-discussions/)
+for help with the mod itself.
+
+As I write this, I'm aware of several issues reported by people in the forums:
+* An odd graphical glitch where a blue-looking overlay takes over
+* Issues with the game crashing consistently on every other startup
+
+Please check the forums above for updates.
