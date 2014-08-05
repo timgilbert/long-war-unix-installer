@@ -46,11 +46,11 @@ The most functional part of this is currently the ability to patch the executabl
 
 ### Blue Sky TODO
 * Checksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
-** Checksum entire insalled game tree, and verify it after backups
+  * Checksum entire insalled game tree, and verify it after backups
 * wxPython (etc) GUI 
 * Validate/update/undo hosts file updates to guard against phone home resets
 * Linux support
-** Some refactoring into platform-specific subclasses or whatnot
+  * Some refactoring into platform-specific subclasses or whatnot
 * Handle Mac App Store installs
 
 ## Bugs
