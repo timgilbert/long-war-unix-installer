@@ -35,19 +35,41 @@ The most functional part of this is currently the ability to patch the executabl
 
 	./install.py --patch-executable "XCOM Enemy Within" "XCOM Enemy Within.patched" -d
 
+### Backups
+
+The script will back up the files it's about to modify before it copies anything from the mod to your 
+installed game directory. Current;y the backups are stored under `Long-War-Backups` under the game 
+installation directory (typically `~/Library/Application Support/Steam/SteamApps/common/XCom-Enemy-Unknown`).
+
+You should be able to roll back an installation by using the `--uninstall` option to the script. You 
+can see a list of mods that have been backed up using the `--list` option:
+
+	% ./install.py --list
+	Long_War_3_Beta_13-88-3-0b13: applied at 2014-08-04 20:19:00
+
+	% ./install.py --uninstall Long_War_3_Beta_13-88-3-0b13
+	Reverted to backup "Long_War_3_Beta_13-88-3-0b13"
+
+**Howveer, please note that this is alpha-quality software at best!** I try to be careful but make 
+no guarantees. If nothing else, you should be able to revert to your vanilla install by using the 
+"Verify Integrity of Game Cache" option from Steam.
+
 ## TODO
 
 * Apply patches from mod! ;)
 * Docs / man page
-* Add --backup flag to back up a directory without overwriting files
+* Add `--backup` flag to back up a directory without overwriting files
 * Interactive mode for script (y/n for overwriting files, etc)
 * Validate that game is EW, not EU, or better yet handle EU-only installs
-* `homebrew` install under `tap/games`?
+  * We should at least make sure `XCOMData/XEW` exists, else exit with an error message
+* Package for `homebrew` under `tap/games`?
 
 ### Blue Sky TODO
 * Checksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
   * Checksum entire insalled game tree, and verify it after backups
 * wxPython (etc) GUI 
+  * Install as an app via pyfreeze
+  * But I'd like the script to be functional as well
 * Validate/update/undo hosts file updates to guard against phone home resets
 * Linux support
   * Some refactoring into platform-specific subclasses or whatnot
