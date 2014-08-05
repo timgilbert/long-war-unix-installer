@@ -40,7 +40,6 @@ The most functional part of this is currently the ability to patch the executabl
 * Interactive mode for script (y/n for overwrting files, etc)
 * Docs / man page
 * Apply patches from mod! ;)
-* Undo and revert to backup
 * Validate that game is EW, not EU, or better yet handle EU-only installs
 * Validate/update/undo hosts file updates to guard against phone home resets
 * wxPython (etc) GUI 
@@ -52,3 +51,4 @@ The most functional part of this is currently the ability to patch the executabl
 ## Bugs
 
 * Multiple backups grow the new files list each time
+* Root level files are installed in XCOMData/XEW instead of at the root

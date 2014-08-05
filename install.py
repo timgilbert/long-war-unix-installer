@@ -69,7 +69,7 @@ def main():
             Sorry, version {version} not found. Use --list to list the available versions.'''.format(version=e))
     except InnoExtractionFailed, e:
         abort(str(e))
-    except IOError, e:
+    except (OSError, IOError), e:
         # This is mildly hacky
         abort("Can't access {}: {}".format(e.filename, e.strerror))
 
@@ -80,6 +80,20 @@ def abort(errmsg):
 def isDebug():
     '''Return true if logging is at debug or lower'''
     return logging.getLogger().level > logging.DEBUG
+
+def copyOrWarn(original, destination):
+    '''Try to copy the original file to the destination. If it fails, emit a warning.'''
+    try:
+        shutil.copy(original, destination)
+    except (OSError, IOError), e:
+        logging.warning("Can't copy %s to %s: %s", original, destination, e.strerror)
+
+def removeOrWarn(target):
+    ''''Remove the given file, issuing a warning (but not exiting) if it doesn't work'''
+    try:
+        os.unlink(target)
+    except (OSError, IOError), e:
+        logging.warning("Can't remove %s: %s", target, e.strerror)
 
 def getRelativePath(pathname, root):
     '''Given the full path to a file and a directory bove it, return the path from the root to the file.'''
@@ -408,7 +422,10 @@ class Backup(object):
         #logging.debug('New files: %s', self.brandNewFiles)
 
     def uninstall(self):
+        '''Restore all files from this backup to the game directory.'''
         self.setupUninstallLog()
+
+        # This could use some refactoring for DRY-related maladies
         logging.debug('Reverting app bundle files from %s to %s', self.version, self.gameDirectory.root)
         for root, dirs, files in os.walk(self.appBundleRoot):
             for filename in files:
@@ -418,6 +435,7 @@ class Backup(object):
                 relativePath = self._getRelativeAppBundlePath(absoluteBackupPath)
                 gamePath = self.gameDirectory.getAppBundlePath(relativePath)
                 logging.debug('Restoring app bundle path %s to %s', absoluteBackupPath, gamePath)
+                copyOrWarn(absoluteBackupPath, gamePath)
 
         logging.debug('Reverting mod files from %s to %s', self.version, self.gameDirectory.root)
         for root, dirs, files in os.walk(self.modFileRoot):
@@ -429,12 +447,13 @@ class Backup(object):
                 gamePath = self.gameDirectory.getModFilePath(relativePath)
                 # logging.debug('#B %s\n#R %s\n#G %s', backupPath, relativePath, gamePath)
                 logging.debug('Restoring mod file path %s to %s', backupPath, gamePath)
+                copyOrWarn(backupPath, gamePath)
 
         logging.debug('Removing new files added in patch')
         for relativePath in self.newFiles:
             addedPath = self.gameDirectory.getModFilePath(relativePath)
             logging.debug('Removing mod file %s', addedPath)
-
+            removeOrWarn(addedPath)
 
     def _getRelativeAppBundlePath(self, absolutePath):
         return getRelativePath(absolutePath, self.appBundleRoot)
