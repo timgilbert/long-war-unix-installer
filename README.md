@@ -50,7 +50,7 @@ can see a list of mods that have been backed up using the `--list` option:
 	% ./install.py --uninstall Long_War_3_Beta_13-88-3-0b13
 	Reverted to backup "Long_War_3_Beta_13-88-3-0b13"
 
-**Howveer, please note that this is alpha-quality software at best!** I try to be careful but make 
+**However, please note that this is alpha-quality software at best!** I try to be careful but make 
 no guarantees. If nothing else, you should be able to revert to your vanilla install by using the 
 "Verify Integrity of Game Cache" option from Steam.
 
