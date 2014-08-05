@@ -280,10 +280,6 @@ class PatchFile(object):
         return '<path:{}{}{}>'.format(self.relativePath, ' (upk)' if self.isUpk else '', 
                                       ' (override)' if self.isOverride else '')
         
-    def getExtractedPath(self):
-        '''Full path to the extracted location in the temp directory'''
-        return self.extractedPath
-
     def getBackupPath(self, backupRoot):
         '''Full path to where this file would belong relative to the given backup folder'''
         return os.path.join(backupRoot, 'app', self.relativePath)
@@ -370,6 +366,7 @@ class Backup(object):
 
         # Check for .uncompressed_size files
         if patchfile.isUpk:
+            # TODO Make this a gameDirectory method returning None or pathname
             uncompressed = gameLocation + GameDirectory.UNCOMPRESSED_SIZE
             if os.path.isfile(uncompressed):
                 logging.debug('Found uncompressed_size file %s, backing it up...', uncompressed)
@@ -379,6 +376,7 @@ class Backup(object):
     def backupOverrideFile(self, patchfile):
         '''Back up a localization file to the override directory inside the .app bundle'''
         filename = os.path.basename(patchfile.extractedPath)
+        # TODO: this should be a gameDirectory method too
         relativePath = os.path.join(GameDirectory.OVERRIDE_DIRECTORY, filename)
         gameLocation = self.gameDirectory.getAppBundlePath(relativePath)
         if os.path.isfile(gameLocation):
@@ -490,16 +488,14 @@ class Backup(object):
 class Patcher(object):
     '''Consolidates logic for applying a patch'''
 
-    def __init__(self, version, backup):
+    def __init__(self, version, backup, gameDirectory):
         self.version = version
         self.backup = backup
-        self.extractor = None
-        self.brandNewFiles = []
+        self.gameDirectory = gameDirectory
 
     def patch(self, extractor):
         logging.debug('Applying patch %s...', self.version)
 
-        self.extractor = extractor
         extractor.extract()
 
         for modFile in extractor.patchFiles:
@@ -522,10 +518,17 @@ class Patcher(object):
         self.backup.backupExecutable()
 
     def copyModFile(self, patchfile):
-        logging.debug('Copying file %s...', patchfile)
+        target = self.gameDirectory.getModFilePath(pathfile.relativePath)
+        source = pathfile.extractedPath
+        logging.debug('Copying file %s to %s...', source, target)
+        #copyOrWarn(source, target)
 
     def copyOverrideFile(self, patchfile):
         logging.debug('Copying override file %s...', patchfile)
+        # target = self.gameDirectory.getModFilePath(pathfile.relativePath)
+        # source = pathfile.extractedPath
+        # logging.debug('Copying override file %s to %s...', source, target)
+        #copyOrWarn(source, target)
 
 # TODO: refactor into platform-specific subclasses
 class GameDirectoryFinder(object):
