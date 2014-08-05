@@ -162,8 +162,8 @@ class GameDirectory(object):
             self.backups[version] = Backup(version, self.backupRoot, self)
         self.activeBackup = self.backups[version]
 
-        self.backups[version].setupInstallLog()
-        patcher = Patcher(version, self.backups[version])
+        self.activeBackup.setupInstallLog()
+        patcher = Patcher(version, self.activeBackup, self)
         patcher.patch(extractor)
 
     def deleteBackupTree(self, version):
@@ -342,8 +342,10 @@ class Backup(object):
 
     def _setupFileLog(self, logPath):
         self._touch()
+        oldLogExists = os.path.isfile(logPath)
         handler = logging.handlers.RotatingFileHandler(logPath, backupCount=9)
-        handler.doRollover() # Hacky but seems to work, we get a new file per execution
+        if oldLogExists:
+            handler.doRollover() # Hacky but seems to work, we get a new log file per execution
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)-7s %(message)s'))
         rootLogger = logging.getLogger()
@@ -518,8 +520,8 @@ class Patcher(object):
         self.backup.backupExecutable()
 
     def copyModFile(self, patchfile):
-        target = self.gameDirectory.getModFilePath(pathfile.relativePath)
-        source = pathfile.extractedPath
+        target = self.gameDirectory.getModFilePath(patchfile.relativePath)
+        source = patchfile.extractedPath
         logging.debug('Copying file %s to %s...', source, target)
         #copyOrWarn(source, target)
 
