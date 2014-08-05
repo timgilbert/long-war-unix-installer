@@ -38,7 +38,7 @@ The most functional part of this is currently the ability to patch the executabl
 ### Backups
 
 The script will back up the files it's about to modify before it copies anything from the mod to your 
-installed game directory. Current;y the backups are stored under `Long-War-Backups` under the game 
+installed game directory. Currently the backups are stored under `Long-War-Backups` under the game 
 installation directory (typically `~/Library/Application Support/Steam/SteamApps/common/XCom-Enemy-Unknown`).
 
 You should be able to roll back an installation by using the `--uninstall` option to the script. You 
