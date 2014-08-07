@@ -63,7 +63,7 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 * Validate that game is EW, not EU, or better yet handle EU-only installs
   * We should at least make sure `XCOMData/XEW` exists, else exit with an error message
 * Package for `homebrew` under `tap/games`?
-* Check `~/Library/Application Support/Feral Software`, where merged files seem to live
+* Back up and patch to `~/Library/Application Support/Feral Software` if need be
 
 ### Blue Sky TODO
 * Checksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
