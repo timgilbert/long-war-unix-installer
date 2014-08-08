@@ -31,11 +31,11 @@ See also [this Linux installer by wghost](https://github.com/wghost/LongWar-Linu
 Docs are forthcoming. Meanwhile, `./install.py --help` works. Basically once you've downloaded the mod
 somewhere, do this:
 
-    ./install.py --apply "$HOME/Downloads/Long War 3 EW Beta 12-88-3-0b12.exe" -d
+    ./LongWarInstaller.py --apply "$HOME/Downloads/Long War 3 EW Beta 12-88-3-0b12.exe" -d
 
 The most functional part of this is currently the ability to patch the executable file.
 
-	./install.py --patch-executable "XCOM Enemy Within" "XCOM Enemy Within.patched" -d
+	./LongWarInstaller.py --patch-executable "XCOM Enemy Within" "XCOM Enemy Within.patched" -d
 
 ### Backups
 
@@ -46,10 +46,10 @@ installation directory (typically `~/Library/Application Support/Steam/SteamApps
 You should be able to roll back an installation by using the `--uninstall` option to the script. You 
 can see a list of mods that have been backed up using the `--list` option:
 
-	% ./install.py --list
+	% ./LongWarInstaller.py --list
 	Long_War_3_Beta_13-88-3-0b13: applied at 2014-08-04 20:19:00
 
-	% ./install.py --uninstall Long_War_3_Beta_13-88-3-0b13
+	% ./LongWarInstaller.py --uninstall Long_War_3_Beta_13-88-3-0b13
 	Reverted to backup "Long_War_3_Beta_13-88-3-0b13"
 
 **However, please note that this is alpha-quality software at best!** I try to be careful but make 
