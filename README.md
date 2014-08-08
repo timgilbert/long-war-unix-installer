@@ -24,6 +24,8 @@ Note: for detailed information about XCom modding, please see
 [the excellent Modding Tools page](http://wiki.tesnexus.com/index.php/Modding_Tools_-_XCOM:EU_2012) 
 on the Nexus wiki.
 
+See also [this Linux installer by wghost](https://github.com/wghost/LongWar-Linux).
+
 ## Usage
 
 Docs are forthcoming. Meanwhile, `./install.py --help` works. Basically once you've downloaded the mod
@@ -94,9 +96,3 @@ their XCom: EW installations on OS/X. I don't know much about modding and probab
 these issues; I'm just focused on getting the installer script to work. Please see 
 [the official Long War mod forum](http://forums.nexusmods.com/index.php?/forum/665-xcom-file-discussions/)
 for help with the mod itself.
-
-As I write this, I'm aware of several issues reported by people in the forums:
-* An odd graphical glitch where a blue-looking overlay takes over
-* Issues with the game crashing consistently on every other startup
-
-Please check the forums above for updates.
