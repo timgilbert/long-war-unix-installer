@@ -3,7 +3,7 @@
 '''Long War installer for OS/X.'''
 
 import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, json, datetime
-import logging.handlers, distutils.spawn
+import fileinput, logging.handlers, distutils.spawn
 
 def main():
     parser = argparse.ArgumentParser(description='Install Long War on OS/X or Linux.')
@@ -16,6 +16,8 @@ def main():
     group.add_argument('--list', action='store_true', help='List mod backups and exit')
     group.add_argument('--patch-executable', nargs=2, metavar=('INPUT', 'OUTPUT'),
                         help='Patch the given executable and exit')
+    group.add_argument('--phone-home-enable', action='store_true', help='Enable phoning home by modifying /etc/hosts')
+    group.add_argument('--phone-home-disable', action='store_true', help='Disable phoning home by modifying /etc/hosts')
     group.add_argument('--uninstall', help='Uninstall given mod and exit', metavar='MOD_VERSION')
 
     args = parser.parse_args()
@@ -40,6 +42,12 @@ def main():
 
         if args.uninstall:
             game.uninstall(args.uninstall) ; return
+
+        if args.phone_home_enable:
+            game.phoneHomeEnable(state=True) ; return
+
+        if args.phone_home_disable:
+            game.phoneHomeEnable(state=False) ; return
 
         game.apply(args.apply)
 
@@ -117,8 +125,7 @@ class GameDirectory(object):
     def __init__(self, root=None):
         self.backups = {}
         if root is None:
-            finder = GameDirectoryFinder()
-            root = finder.find()
+            root = GameDirectoryFinder().find()
         if not os.path.isdir(root):
             logging.info("Can't open directory %s!", root)
             raise NoGameDirectoryFound()
@@ -129,6 +136,10 @@ class GameDirectory(object):
 
         logging.debug('Game root directory located at %s', self.root)
         self._scanForBackups()
+
+        self.hostsScanner = HostsFileScanner()
+        self.phoneHomeEnabled = self.hostsScanner.phoneHomeEnabled()
+        logging.debug('Phone home: %s', 'enabled' if self.phoneHomeEnabled else 'disabled')
 
     def _scanForBackups(self):
         logging.debug('Scanning for available backups...')
@@ -193,6 +204,15 @@ class GameDirectory(object):
         in the installed game tree.'''
         return os.path.join(self.root, GameDirectory.MOD_FILE_ROOT, relativePath)
 
+    def phoneHomeEnable(self, state):
+        logging.debug('Setting phone home to %s', state)
+        if self.phoneHomeEnabled == state:
+            logging.warn('Phone home is already %s.', 'enabled' if state else 'disabled')
+            return
+        if state == True:
+            self.hostsScanner.disable()
+        else:
+            self.hostsScanner.enable()
 
 class Extractor(object):
     '''Extracts files from the InnoInstall packages.'''
@@ -614,6 +634,47 @@ class ExecutablePatcher(object):
         with open(self.outfile, 'wb') as output:
             output.write(contents)
         logging.info('Patched %d strings in "%s" as "%s"', total, self.infile, self.outfile)
+
+class HostsFileScanner(object):
+    HOSTS = '/tmp/hosts'
+    PATTERNS = [re.compile(r'^[^#\s]*\S+\s+prod\.xcom\.firaxis\.com'),
+                re.compile(r'^[^#\s]*\S+\s+prod\.xcom-ew\.firaxis\.com'),
+                re.compile(r'^#\s+Long-War-Installer:')]
+    PHONE_HOME_DISABLE_TEXT = textwrap.dedent('''\
+        # Long-War-Installer: if the following two lines are present, XCom phone home is disabled.
+        127.0.0.1 prod.xcom-ew.firaxis.com
+        127.0.0.1 prod.xcom.firaxis.com
+        ''')
+
+    def __init__(self):
+        self.state = None
+
+    def phoneHomeEnabled(self):
+        if self.state is None:
+            self.state = not self._xcomEntryExists()
+        return self.state
+
+    def enable(self):
+        '''Turn on phoning home by removing xcom entries from the hosts file'''
+        for line in fileinput.input(HostsFileScanner.HOSTS, inplace=1, backup='.bak'):
+            for pattern in HostsFileScanner.PATTERNS:
+                if pattern.match(line):
+                    line = ''
+
+    def disable(self):
+        '''Turn off phoning home by adding xcom entries to the hosts file'''
+        with open(HostsFileScanner.HOSTS, 'a') as f:
+            f.write(HostsFileScanner.PHONE_HOME_DISABLE_TEXT)
+
+    def _xcomEntryExists(self):
+        '''Scan hosts file. If a known XCom hosts is found, return True, else return False.'''
+        logging.debug('Scanning %s for unlock state', HostsFileScanner.HOSTS)
+        with open(HostsFileScanner.HOSTS, 'r') as f:
+            for line in f:
+                for pattern in HostsFileScanner.PATTERNS:
+                    if pattern.match(line):
+                        return True
+        return False
 
 # Errors
 class InstallError(Exception): pass
