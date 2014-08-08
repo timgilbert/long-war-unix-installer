@@ -56,14 +56,21 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 
 ## TODO
 
+* Validate/update/undo hosts file updates (phone-home blocking)
+  * exec as `sudo $@` to gain root privs
+* Before run, validate whether game has been run once 
+  * Existence of Feral directory should indicate this
+  * If it doesn't exist, validate that phone home is unblocked prior to first run
 * Apply patches from mod! ;)
+  * Needs some tweaks to deal with Feral directory
+  * [Anderkent's post here](http://forums.nexusmods.com/index.php?/topic/1918524-long-war-for-mac-osx-pointers-advice/?p=17283439)
+    is an excellent summary
+  * Uninstall should remove `MacInit/*.ini`
 * Docs / man page
 * Add `--backup` flag to back up a directory without overwriting files
 * Interactive mode for script (y/n for overwriting files, etc)
 * Validate that game is EW, not EU, or better yet handle EU-only installs
   * We should at least make sure `XCOMData/XEW` exists, else exit with an error message
-* Package for `homebrew` under `tap/games`?
-* Back up and patch to `~/Library/Application Support/Feral Software` if need be
 
 ### Blue Sky TODO
 * Checksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
@@ -71,7 +78,6 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 * wxPython (etc) GUI 
   * Install as an app via pyfreeze
   * But I'd like the script to be functional as well
-* Validate/update/undo hosts file updates to guard against phone home resets
 * Linux support
   * Some refactoring into platform-specific subclasses or whatnot
 * Handle Mac App Store installs

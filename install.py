@@ -508,7 +508,8 @@ class Patcher(object):
                 self.backup.backupOverrideFile(modFile)
                 self.copyOverrideFile(modFile)
 
-        self.patchExecutable()
+        # Note, this does not seem to be necessary for OS/X or Linux
+        #self.patchExecutable()
 
         self.backup.writeBackupMetadata()
 
@@ -516,8 +517,12 @@ class Patcher(object):
         logging.info('Applied mod "%s"', self.version)
 
     def patchExecutable(self): 
+        '''Back up and patch the executable. Note that this does not seem to be necessary for the 
+        OS/X or Linux ports of XCom. If you want to play around with this, use the --patch-executable
+        command-line option.'''
         logging.debug('Patching executable...')
         self.backup.backupExecutable()
+        #exePath = self.gameDirectory.getAppBundlePath(GameDirectory.EXECUTABLE)
 
     def copyModFile(self, patchfile):
         target = self.gameDirectory.getModFilePath(patchfile.relativePath)
