@@ -58,8 +58,6 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 
 ## TODO
 
-* Validate/update/undo hosts file updates (phone-home blocking)
-  * exec as `sudo $@` to gain root privs
 * Before run, validate whether game has been run once 
   * Existence of Feral directory should indicate this
   * If it doesn't exist, validate that phone home is unblocked prior to first run
@@ -75,6 +73,7 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
   * We should at least make sure `XCOMData/XEW` exists, else exit with an error message
 
 ### Blue Sky TODO
+* exec as `sudo $@` to gain root privs for enable / disable hosts
 * Checksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
   * Checksum entire insalled game tree, and verify it after backups
 * wxPython (etc) GUI 
