@@ -11,14 +11,14 @@ def main():
     parser.add_argument('--game-directory', help='Directory to use for game installation')
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--delete', help='Mod ID to delete backup for', metavar='MOD_VERSION')
     group.add_argument('--apply', help='Filename for the Long War executable file', metavar='MOD_FILENAME')
+    group.add_argument('--uninstall', help='Uninstall given mod and exit', metavar='MOD_VERSION')
     group.add_argument('--list', action='store_true', help='List mod backups and exit')
+    group.add_argument('--delete', help='Delete a backup and exit', metavar='MOD_VERSION')
     group.add_argument('--patch-executable', nargs=2, metavar=('INPUT', 'OUTPUT'),
                         help='Patch the given executable and exit')
     group.add_argument('--phone-home-enable', action='store_true', help='Enable phoning home by modifying /etc/hosts')
     group.add_argument('--phone-home-disable', action='store_true', help='Disable phoning home by modifying /etc/hosts')
-    group.add_argument('--uninstall', help='Uninstall given mod and exit', metavar='MOD_VERSION')
 
     args = parser.parse_args()
 
@@ -79,7 +79,20 @@ def main():
         abort(str(e))
     except PhoneHomePermissionDenied, e:
         abort('''\
-            Permission denied opening {}. You must run this program as root to enable or disable phoning home.'''.format(HostsFileScanner.HOSTS))
+            Permission denied opening {}. You must run this program as root to enable or disable ''' +
+            '''phoning home.'''.format(HostsFileScanner.HOSTS))
+    except NoFeralDirectory, e:
+        msg ='''\
+            I couldn't find the Feral Interactive directory in App Support. Before you install Long War, 
+            you need to make sure phoning home is not disabled, launch the game, and exit from the main 
+            menu.'''
+        if not e.args[0]:
+            msg += '\n\n' + '''\
+            Note that phoning home is currently *disabled*. Enable it by running as root with the 
+            --phone-home-enable option, launch the game, exit, and then running the installer as root
+            again with the --phone-home-disable option to turn it off. Once that is done you can install 
+            Long War and run the game as usual.'''
+        abort(msg)
     except (OSError, IOError), e:
         # This is mildly sloppy
         abort("Can't access {}: {}".format(e.filename, e.strerror))
@@ -107,7 +120,7 @@ def removeOrWarn(target):
         logging.warning("Can't remove %s: %s", target, e.strerror)
 
 def getRelativePath(pathname, root):
-    '''Given the full path to a file and a directory bove it, return the path from the root to the file.'''
+    '''Given the full path to a file and a directory above it, return the path from the root to the file.'''
     # Weirdly, os.path.commonprefix returns a string match instead of a directory match
     # cf http://stackoverflow.com/questions/21498939/how-to-circumvent-the-fallacy-of-pythons-os-path-commonprefix
     return os.path.relpath(pathname, os.path.commonprefix([root + os.sep, pathname]))
@@ -124,6 +137,7 @@ class GameDirectory(object):
     LOCALIZATION = 'Localization'
     UNCOMPRESSED_SIZE = '.uncompressed_size'
     OVERRIDE_DIRECTORY = 'Contents/Resources/MacOverrides'
+    FERAL_MACINIT = '~/Library/Application Support/Feral Interactive/XCOM Enemy Unknown/XEW/MacInit'
 
     def __init__(self, root=None):
         self.backups = {}
@@ -136,12 +150,13 @@ class GameDirectory(object):
         self.root = root
         self.backupRoot = os.path.join(self.root, Backup.BACKUP_DIRECTORY)
         self.appBundleRoot = os.path.join(self.root, GameDirectory.APP_BUNDLE)
-
         logging.debug('Game root directory located at %s', self.root)
         self._scanForBackups()
 
         self.hostsScanner = HostsFileScanner()
         logging.debug('Phone home: %s', 'enabled' if self.hostsScanner.isEnabled else 'disabled')
+
+        self.feralRoot = os.path.expanduser(GameDirectory.FERAL_MACINIT)
 
     def _scanForBackups(self):
         logging.debug('Scanning for available backups...')
@@ -155,6 +170,10 @@ class GameDirectory(object):
             if os.path.isfile(metadata):
                 self.backups[dirname] = Backup(dirname, self.backupRoot, self)
 
+    def _validateFeral(self):
+        if not os.path.exists(self.feralRoot):
+            raise NoFeralDirectory(self.hostsScanner.isEnabled)
+
     def list(self):
         logging.debug('Listing backups...')
         if not self.backups:
@@ -164,6 +183,7 @@ class GameDirectory(object):
             logging.info('%s', self.backups[key])
 
     def apply(self, filename):
+        self._validateFeral()
         extractor = Extractor(filename)
         version = extractor.modname
 
@@ -710,5 +730,6 @@ class SteamDirectoryNotFound(InstallError): pass
 class NoGameDirectoryFound(InstallError): pass
 class BackupVersionNotFound(InstallError): pass
 class PhoneHomePermissionDenied(InstallError): pass
+class NoFeralDirectory(InstallError): pass
 
 if __name__ == '__main__': main()
