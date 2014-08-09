@@ -58,22 +58,23 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 
 ## TODO
 
-* Before run, validate whether game has been run once 
-  * Existence of Feral directory should indicate this
-  * If it doesn't exist, validate that phone home is unblocked prior to first run
 * Apply patches from mod! ;)
-  * Needs some tweaks to deal with Feral directory
-  * [Anderkent's post here](http://forums.nexusmods.com/index.php?/topic/1918524-long-war-for-mac-osx-pointers-advice/?p=17283439)
+  * [Anderkent's post here](http://forums.nexusmods.com/index.php?/topic/1918524-long-war-for-mac-osx-pointers-advice/?p=17340474)
     is an excellent summary
   * Uninstall should remove `MacInit/*.ini`
+* Backup renamed files from feral directory, and restore on mod uninstallation
 * Docs / man page
 * Add `--backup` flag to back up a directory without overwriting files
 * Interactive mode for script (y/n for overwriting files, etc)
 * Validate that game is EW, not EU, or better yet handle EU-only installs
   * We should at least make sure `XCOMData/XEW` exists, else exit with an error message
+* Verify mod uninstallation with git
+* Add docs on verifying successful installation: correct second wave options, 6 operatives in 
+  red during first mission, proper weapon names, etc.
+* Version installer, git-flow if need be, etc
 
 ### Blue Sky TODO
-* exec as `sudo $@` to gain root privs for enable / disable hosts
+* fork / exec as `sudo $@` to gain root privs for enable / disable hosts
 * Checksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
   * Checksum entire insalled game tree, and verify it after backups
 * wxPython (etc) GUI 

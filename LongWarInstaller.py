@@ -3,12 +3,15 @@
 '''Long War installer for OS/X.'''
 
 import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, json, datetime
-import fileinput, errno, logging.handlers, distutils.spawn
+import fileinput, errno
+import logging.handlers, distutils.spawn
 
 def main():
     parser = argparse.ArgumentParser(description='Install Long War on OS/X or Linux.')
     parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output on console')
     parser.add_argument('--game-directory', help='Directory to use for game installation')
+    parser.add_argument('--dry-run', action='store_true', 
+                        help="Log what would be done, but don't modify game directory")
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--apply', help='Filename for the Long War executable file', metavar='MOD_FILENAME')
@@ -16,7 +19,7 @@ def main():
     group.add_argument('--list', action='store_true', help='List mod backups and exit')
     group.add_argument('--delete', help='Delete a backup and exit', metavar='MOD_VERSION')
     group.add_argument('--patch-executable', nargs=2, metavar=('INPUT', 'OUTPUT'),
-                        help='Patch the given executable and exit')
+                        help='Patch the given executable and exit (NOTE: not necessary!)')
     group.add_argument('--phone-home-enable', action='store_true', help='Enable phoning home by modifying /etc/hosts')
     group.add_argument('--phone-home-disable', action='store_true', help='Disable phoning home by modifying /etc/hosts')
 
@@ -49,7 +52,7 @@ def main():
         if args.phone_home_disable:
             game.phoneHomeDisable() ; return
 
-        game.apply(args.apply)
+        game.apply(args.apply, args.dry_run)
 
     except InnoExtractorNotFound:
         abort('''\
@@ -81,12 +84,12 @@ def main():
         abort('''\
             Permission denied opening {}. You must run this program as root to enable or disable ''' +
             '''phoning home.'''.format(HostsFileScanner.HOSTS))
-    except NoFeralDirectory, e:
+    except GameHasNotPhonedHome, e:
         msg ='''\
             I couldn't find the Feral Interactive directory in App Support. Before you install Long War, 
-            you need to make sure phoning home is not disabled, launch the game, and exit from the main 
-            menu.'''
-        if not e.args[0]:
+            you need to make sure phoning home is not disabled, launch the game, and exit to the desktop 
+            from the main menu.'''
+        if not e.args[0]:           # If args[0] is true, phoning home is enabled
             msg += '\n\n' + '''\
             Note that phoning home is currently *disabled*. Enable it by running as root with the 
             --phone-home-enable option, launch the game, exit, and then running the installer as root
@@ -137,6 +140,8 @@ class GameDirectory(object):
     LOCALIZATION = 'Localization'
     UNCOMPRESSED_SIZE = '.uncompressed_size'
     OVERRIDE_DIRECTORY = 'Contents/Resources/MacOverrides'
+    # If this is present, app has phoned home
+    PHONE_HOME_INDICATOR = 'Contents/Frameworks/QuincyKit.framework'
     FERAL_MACINIT = '~/Library/Application Support/Feral Interactive/XCOM Enemy Unknown/XEW/MacInit'
 
     def __init__(self, root=None):
@@ -150,6 +155,7 @@ class GameDirectory(object):
         self.root = root
         self.backupRoot = os.path.join(self.root, Backup.BACKUP_DIRECTORY)
         self.appBundleRoot = os.path.join(self.root, GameDirectory.APP_BUNDLE)
+        self.hasPhonedHome = os.path.exists(self.getAppBundlePath(GameDirectory.PHONE_HOME_INDICATOR))
         logging.debug('Game root directory located at %s', self.root)
         self._scanForBackups()
 
@@ -170,20 +176,28 @@ class GameDirectory(object):
             if os.path.isfile(metadata):
                 self.backups[dirname] = Backup(dirname, self.backupRoot, self)
 
-    def _validateFeral(self):
-        if not os.path.exists(self.feralRoot):
-            raise NoFeralDirectory(self.hostsScanner.isEnabled)
+    def _validateHasPhonedHome(self):
+        '''Make sure the user has run the game with phone home enabled at least once, else 
+        throw an exception.'''
+        if not self.hasPhonedHome:
+            raise GameHasNotPhonedHome(self.hostsScanner.isEnabled)
 
     def list(self):
         logging.debug('Listing backups...')
+        logging.info('Phoning home is currently %s.', 
+                  'enabled' if self.hostsScanner.isEnabled else 'blocked')
+        if self.hasPhonedHome:
+            logging.info('The game has phoned home at least once.')
+        else:
+            logging.info('The game has NOT phoned home yet, so Long War will not work.')
         if not self.backups:
             logging.info('No backups found in %s.', self.root)
             return
         for key in sorted(self.backups.keys()):
             logging.info('%s', self.backups[key])
 
-    def apply(self, filename):
-        self._validateFeral()
+    def apply(self, filename, dryRun=False):
+        self._validateHasPhonedHome()
         extractor = Extractor(filename)
         version = extractor.modname
 
@@ -196,8 +210,10 @@ class GameDirectory(object):
         self.activeBackup = self.backups[version]
 
         self.activeBackup.setupInstallLog()
-        patcher = Patcher(version, self.activeBackup, self)
+        patcher = Patcher(version, self.activeBackup, self, dryRun)
         patcher.patch(extractor)
+        logging.info('Applied mod version "%s" to XCom.', version)
+        logging.info('Install log available in %s', self.activeBackup.installLog)
 
     def deleteBackupTree(self, version):
         if version not in self.backups:
@@ -238,6 +254,15 @@ class GameDirectory(object):
             return
         self.hostsScanner.enable()
 
+class FeralDirectory(object):
+    # Maps from paths relative to the extract directory to paths in the MacInit folder
+    RENAME_PATHS = {'XComGame/Config/DefaultGameCore.ini': 'XComGameCore.ini',
+                    'XComGame/Config/DefaultLoadouts.ini': 'XComLoadouts.ini'}
+    @classmethod
+    def feralMacinitCopy(cls, relativePath):
+        '''Return the filename relative to the feral MacInit folder that this file should be 
+        copied to, or None if it shouldn't be copied there.'''
+        return cls.RENAME_PATHS.get(relativePath, None)
 
 class Extractor(object):
     '''Extracts files from the InnoInstall packages.'''
@@ -320,10 +345,15 @@ class PatchFile(object):
         _, extension = os.path.splitext(self.extractedPath)
         self.isUpk = GameDirectory.COOKED_PC in self.extractedPath and extension in ['.upk']
         self.isOverride = GameDirectory.LOCALIZATION in self.extractedPath and extension in ['.int', '.esn']
+        self.feralPath = FeralDirectory.feralMacinitCopy(self.relativePath)
 
     def __repr__(self):
-        return '<path:{}{}{}>'.format(self.relativePath, ' (upk)' if self.isUpk else '', 
-                                      ' (override)' if self.isOverride else '')
+        spec = ''
+        if self.isUpk: spec += ' (upk)'
+        if self.isOverride: spec += ' (override)'
+        if self.feralPath is not None: 
+            spec += ' (feral: {})'.format(self.feralPath)
+        return '<path:{}{}>'.format(self.relativePath, spec)
         
     def getBackupPath(self, backupRoot):
         '''Full path to where this file would belong relative to the given backup folder'''
@@ -361,6 +391,8 @@ class Backup(object):
         self.applied = False
         self.totalModFiles = 0
         self.totalAppBundleFiles = 0
+        self.installLog = os.path.join(self.root, 'install.log')
+        self.uninstallLog = os.path.join(self.root, 'uninstall.log')
         self._loadMetadata()
 
     def __str__(self):
@@ -379,11 +411,11 @@ class Backup(object):
 
     def setupInstallLog(self):
         '''Begin logging messages to the install.log file for this backup'''
-        self._setupFileLog(os.path.join(self.root, 'install.log'))
+        self._setupFileLog(self.installLog)
 
     def setupUninstallLog(self):
         '''Begin logging messages to the install.log file for this backup'''
-        self._setupFileLog(os.path.join(self.root, 'uninstall.log'))
+        self._setupFileLog(self.uninstallLog)
 
     def _setupFileLog(self, logPath):
         self._touch()
@@ -535,15 +567,18 @@ class Backup(object):
 class Patcher(object):
     '''Consolidates logic for applying a patch'''
 
-    def __init__(self, version, backup, gameDirectory):
+    def __init__(self, version, backup, gameDirectory, dryRun=False):
         self.version = version
         self.backup = backup
         self.gameDirectory = gameDirectory
+        self.dryRun = dryRun
 
     def patch(self, extractor):
         logging.debug('Applying patch %s...', self.version)
 
         extractor.extract()
+
+        self.nukeFeralDirectory()
 
         for modFile in extractor.patchFiles:
             self.backup.backupModFile(modFile)
@@ -552,36 +587,39 @@ class Patcher(object):
                 logging.debug('Copying override to override directory')
                 self.backup.backupOverrideFile(modFile)
                 self.copyOverrideFile(modFile)
-
-        # Note, this does not seem to be necessary for OS/X or Linux
-        #self.patchExecutable()
+            if modFile.feralPath is not None:
+                self.copyAndRenameFeralFile(modFile)
 
         self.backup.writeBackupMetadata()
 
         extractor.cleanup()
-        logging.info('Applied mod "%s"', self.version)
-
-    def patchExecutable(self): 
-        '''Back up and patch the executable. Note that this does not seem to be necessary for the 
-        OS/X or Linux ports of XCom. If you want to play around with this, use the --patch-executable
-        command-line option.'''
-        logging.debug('Patching executable...')
-        self.backup.backupExecutable()
-        #exePath = self.gameDirectory.getAppBundlePath(GameDirectory.EXECUTABLE)
 
     def copyModFile(self, patchfile):
         target = self.gameDirectory.getModFilePath(patchfile.relativePath)
-        source = patchfile.extractedPath
-        logging.debug('Copying file %s to %s...', source, target)
-        #copyOrWarn(source, target)
+        logging.debug('Copying mod file %s to %s...', patchfile, target)
+        if not self.dryRun:
+            copyOrWarn(patchfile.extractedPath, target)
+
+    def nukeFeralDirectory(self):
+        '''Delete all files in the feral directory.'''
+        logging.debug('Removing files from feral directory %s...', self.gameDirectory.feralRoot)
+        for f in os.listdir(self.gameDirectory.feralRoot):
+            logging.debug('Removing feral file %s...', f)
+            if not self.dryRun:
+                os.unlink(f)
 
     def copyOverrideFile(self, patchfile):
-        logging.debug('Copying override file %s...', patchfile)
-        # target = self.gameDirectory.getModFilePath(pathfile.relativePath)
-        # source = pathfile.extractedPath
-        # logging.debug('Copying override file %s to %s...', source, target)
-        #copyOrWarn(source, target)
-
+        target = self.gameDirectory.getModFilePath(patchfile.relativePath)
+        logging.debug('Copying override file %s to %s...', patchfile, target)
+        if not self.dryRun:
+            copyOrWarn(patchfile.extractedPath, target)
+    
+    def copyAndRenameFeralFile(self, patchfile):
+        target = os.path.join(self.gameDirectory.feralRoot, patchfile.feralPath)
+        logging.debug('Copying feral file %s to %s', patchfile, target)
+        if not self.dryRun:
+            copyOrWarn(patchfile.extractedPath, target)
+        
 # TODO: refactor into platform-specific subclasses
 class GameDirectoryFinder(object):
     STEAM_LIBRARY_ROOT = '~/Library/Application Support/Steam' 
@@ -626,7 +664,10 @@ class GameDirectoryFinder(object):
 
 class ExecutablePatcher(object):
     '''Code to patch an executable file. This code is pretty simple-minded and loads the whole file 
-    into memory (roughly 40MB).'''
+    into memory (roughly 40MB).
+
+    NOTE: patching the executable does not currently seem to be necessary for with Mac or Linux.
+    This code does seem to work, so it's here in case it will be useful in the future.'''
 
     PATCH_STRINGS = [
         (u'''XComGame\Config\DefaultGameCore.ini''', u'''--PATCH-\Config\DefaultGameCore.ini'''),
@@ -730,6 +771,6 @@ class SteamDirectoryNotFound(InstallError): pass
 class NoGameDirectoryFound(InstallError): pass
 class BackupVersionNotFound(InstallError): pass
 class PhoneHomePermissionDenied(InstallError): pass
-class NoFeralDirectory(InstallError): pass
+class GameHasNotPhonedHome(InstallError): pass
 
 if __name__ == '__main__': main()
