@@ -58,7 +58,6 @@ manually.
 ## Detailed Installation Steps
 
 1. Get the relevant files
-
   * Download the LongWarInstaller.py script somewhere (or `git clone` this project)
   * Download the Windows *Long War* installer from the "Files" tab of [its homepage](http://www.nexusmods.com/xcom/mods/88/).
     You want the Enemy Within (EW) version. As I write this, the most recent version is "Long War 3 Beta 13-88-3-0b13".
