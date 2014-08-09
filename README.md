@@ -21,17 +21,21 @@ See also [this Linux installer by wghost](https://github.com/wghost/LongWar-Linu
 
 **Note!** This is currently alpha-quality software. You may want to back up your installation directory 
 before you try it. If something goes wrong, enable phoning home, pull up the game's properties in Steam, 
-and choose "verify files." (This will probably re-download the entire game.)
+and choose "Verify Integrity of Game Cache." (This will probably re-download the entire game.)
 
 * Launch the game once and quit
 * Download the installer script
 * Apply the mod:
 
-    ./LongWarInstaller.py --apply "$HOME/Downloads/Long War 3 EW Beta 12-88-3-0b12.exe" -d
+```
+./LongWarInstaller.py --apply "$HOME/Downloads/Long War 3 EW Beta 12-88-3-0b12.exe" -d
+```
 
 * Disable phoning home:
 
-    sudo ./LongWarInstaller.py --phone-home-disable
+```
+sudo ./LongWarInstaller.py --phone-home-disable
+```
 
 * Launch the game and enjoy Long War
 
@@ -55,24 +59,22 @@ manually.
 
 1. Get the relevant files
 
-* Download the LongWarInstaller.py script somewhere (or `git clone` this project)
-* Download the Windows *Long War* installer from the "Files" tab of [its homepage](http://www.nexusmods.com/xcom/mods/88/).
-  You want the Enemy Within (EW) version. As I write this, the most recent version is "Long War 3 Beta 13-88-3-0b13".
-* Make sure you've got `innoextract` installed (see [Dependencies][#Dependencies]).
+  * Download the LongWarInstaller.py script somewhere (or `git clone` this project)
+  * Download the Windows *Long War* installer from the "Files" tab of [its homepage](http://www.nexusmods.com/xcom/mods/88/).
+    You want the Enemy Within (EW) version. As I write this, the most recent version is "Long War 3 Beta 13-88-3-0b13".
+  * Make sure you've got `innoextract` installed (see [Dependencies][#Dependencies]).
 
 2. Install *XCom: Enemy Within* from Steam.
 
 3. Launch the game at least once.
-
-* When you run the game for the first time, it will download some updates from a server at Firaxis. This is 
-  known as "phoning home" and is completely unrelated to Steam's auto-update system.
-* If the game doesn't phone home at least once before you install the mod, it will crash when you launch it.
-* It is sufficient to launch the game, get to the main menu, and then quit to get *XCom* to phone home.
+  * When you run the game for the first time, it will download some updates from a server at Firaxis. This is 
+    known as "phoning home" and is completely unrelated to Steam's auto-update system.
+  * If the game doesn't phone home at least once before you install the mod, it will crash when you launch it.
+  * It is sufficient to launch the game, get to the main menu, and then quit to get *XCom* to phone home.
 
 4. Block [phoning home](#Phoning-Home).
-
-* After the game has phoned home one time, you'll want to disable phoning home, otherwise various parts 
-  of the mod will be overwritten the next time you launch it and you'll probably crash to desktop.
+  * After the game has phoned home one time, you'll want to disable phoning home, otherwise various parts 
+    of the mod will be overwritten the next time you launch it and you'll probably crash to desktop.
 
 5. Launch the game.
 
@@ -121,16 +123,17 @@ The script will back up the files it's about to modify before it copies anything
 installed game directory. Currently the backups are stored under `Long-War-Backups` under the game 
 installation directory (typically `~/Library/Application Support/Steam/SteamApps/common/XCom-Enemy-Unknown`).
 
-You should be able to roll back an installation by using the `--uninstall` option to the script. You 
-can see a list of mods that have been backed up using the `--list` option:
+You can see a list of mods that have been backed up using the `--list` option:
 
-	% ./LongWarInstaller.py --list
-	Long_War_3_Beta_13-88-3-0b13: applied at 2014-08-04 20:19:00
+  	% ./LongWarInstaller.py --list
+	  Long_War_3_Beta_13-88-3-0b13: applied at 2014-08-04 20:19:00
 
-	% ./LongWarInstaller.py --uninstall Long_War_3_Beta_13-88-3-0b13
-	Reverted to backup "Long_War_3_Beta_13-88-3-0b13"
+...and should be able to roll back an installation by using the `--uninstall` option to the script. 
 
-**However, please note that this is alpha-quality software at best!** I try to be careful but make 
+	  % ./LongWarInstaller.py --uninstall Long_War_3_Beta_13-88-3-0b13
+	  Reverted to backup "Long_War_3_Beta_13-88-3-0b13"
+
+**However, note that rollback is not completely tested!** I try to be careful, but I make 
 no guarantees. If nothing else, you should be able to revert to your vanilla install by using the 
 "Verify Integrity of Game Cache" option from Steam.
 
@@ -163,8 +166,8 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 
 ## Bugs
 
-* Multiple backups grow the new files list each time
-* Root level files are installed in XCOMData/XEW instead of at the root
+* Multiple applications grow the new files list in backups each time
+* Root level files are installed in `XCOMData/XEW` instead of at the root
 * Running without -d logs at INFO to file log (should be DEBUG)
 
 ## Etc
