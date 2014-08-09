@@ -139,7 +139,7 @@ class GameDirectory(object):
     COOKED_PC = 'CookedPCConsole'
     LOCALIZATION = 'Localization'
     UNCOMPRESSED_SIZE = '.uncompressed_size'
-    OVERRIDE_DIRECTORY = 'Contents/Resources/MacOverrides'
+    OVERRIDE_DIRECTORY = 'Contents/Resources/XEW/MacOverrides'
     # If this is present, app has phoned home
     PHONE_HOME_INDICATOR = 'Contents/Frameworks/QuincyKit.framework'
     FERAL_MACINIT = '~/Library/Application Support/Feral Interactive/XCOM Enemy Unknown/XEW/MacInit'
@@ -212,7 +212,7 @@ class GameDirectory(object):
         self.activeBackup.setupInstallLog()
         patcher = Patcher(version, self.activeBackup, self, dryRun)
         patcher.patch(extractor)
-        logging.info('Applied mod version "%s" to XCom.', version)
+        logging.info('Applied mod version "%s" to game directory.', version)
         logging.info('Install log available in %s', self.activeBackup.installLog)
 
     def deleteBackupTree(self, version):
@@ -232,10 +232,10 @@ class GameDirectory(object):
 
     def getAppBundlePath(self, relativePath):
         '''Given a relative file from a patch, return its location in the installed game tree'''
-        # logging.debug('# %s %s', self.root, GameDirectory.APP_BUNDLE)
-        # logging.debug('# %s %s', os.path.join(self.root, GameDirectory.APP_BUNDLE), os.path.join(self.root, GameDirectory.APP_BUNDLE, relativePath))
-        # logging.debug('# %s -> %s', relativePath, os.path.join(self.root, GameDirectory.APP_BUNDLE, relativePath))
-        return os.path.join(self.root, GameDirectory.APP_BUNDLE, relativePath)
+        appBundleRelative = re.sub(r'^XComGame/Localization/[A-Za-z]{3}/([^\.]+\.[A-Za-z]{3})$', 
+                                   r'Contents/Resources/MacOverrides/XEW/\1', 
+                                   relativePath)
+        return os.path.join(self.appBundleRoot, appBundleRelative)
 
     def getModFilePath(self, relativePath):
         '''Given a relative file from a patch in the top-level "app" directory, return its location 
@@ -288,6 +288,8 @@ class Extractor(object):
         os.chdir(self.tmp)
         command = [self.innoextract, '-e', '--progress=0', '--color=0', '-s', self.filename]
 
+        # A fancier script would log innoextract output to the log files if we're at debug
+        # also, this logic is backwards I think, but running with -s it doesn't matter
         if isDebug():
             DEVNULL = open(os.devnull, 'w') # squash output
             stdout, stderr = DEVNULL, DEVNULL
@@ -583,6 +585,8 @@ class Patcher(object):
         for modFile in extractor.patchFiles:
             self.backup.backupModFile(modFile)
             self.copyModFile(modFile)
+            if modFile.isUpk:
+                self.removeUncompressedSize(modFile)
             if modFile.isOverride:
                 logging.debug('Copying override to override directory')
                 self.backup.backupOverrideFile(modFile)
@@ -603,13 +607,21 @@ class Patcher(object):
     def nukeFeralDirectory(self):
         '''Delete all files in the feral directory.'''
         logging.debug('Removing files from feral directory %s...', self.gameDirectory.feralRoot)
-        for f in os.listdir(self.gameDirectory.feralRoot):
-            logging.debug('Removing feral file %s...', f)
+        for fn in (os.path.join(self.gameDirectory.feralRoot, f) for f in os.listdir(self.gameDirectory.feralRoot)):
+            logging.debug('Removing feral file %s...', fn)
             if not self.dryRun:
-                os.unlink(f)
+                os.unlink(fn)
+
+    def removeUncompressedSize(self, modfile):
+        filename = modfile.relativePath + GameDirectory.UNCOMPRESSED_SIZE
+        uncompressed = self.gameDirectory.getModFilePath(filename)
+        if os.path.exists(uncompressed):
+            logging.debug('Removing uncompressed file %s', uncompressed)
+            if not self.dryRun:
+                os.unlink(uncompressed)
 
     def copyOverrideFile(self, patchfile):
-        target = self.gameDirectory.getModFilePath(patchfile.relativePath)
+        target = self.gameDirectory.getAppBundlePath(patchfile.relativePath)
         logging.debug('Copying override file %s to %s...', patchfile, target)
         if not self.dryRun:
             copyOrWarn(patchfile.extractedPath, target)
@@ -624,7 +636,7 @@ class Patcher(object):
 class GameDirectoryFinder(object):
     STEAM_LIBRARY_ROOT = '~/Library/Application Support/Steam' 
     STEAM_CONFIG_FILE = 'config/config.vdf'
-    GAME_ROOT = 'SteamApps/common/XCom-Enemy-Unknown-TEST' # TODO change this for distribution
+    GAME_ROOT = 'SteamApps/common/XCom-Enemy-Unknown'
 
     def __init__(self):
         self.steamRoot = os.path.expanduser(GameDirectoryFinder.STEAM_LIBRARY_ROOT)

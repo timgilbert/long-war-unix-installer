@@ -83,11 +83,13 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 * Linux support
   * Some refactoring into platform-specific subclasses or whatnot
 * Handle Mac App Store installs
+* Catch exceptions at root level and have option to paste logs into pastebin or whatever
 
 ## Bugs
 
 * Multiple backups grow the new files list each time
 * Root level files are installed in XCOMData/XEW instead of at the root
+* Running without -d logs at INFO to file log (should be DEBUG)
 
 # State of the Mod
 
