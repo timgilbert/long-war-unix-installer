@@ -107,6 +107,16 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 * Root level files are installed in `XCOMData/XEW` instead of at the root
 * Running without -d logs at INFO to file log (should be DEBUG)
 
+# State of the Mod
+
+As I write this in early August 2014, users have reported several bugs after applying Long War to
+their XCom: EW installations on OS/X. I don't know much about modding and probably can't help with 
+these issues; I'm just focused on getting the installer script to work. Please see 
+[the official Long War mod forum](http://forums.nexusmods.com/index.php?/forum/665-xcom-file-discussions/)
+for help with the mod itself.
+
+Currently the mod crashes to desktop on launch quite often. There should be a fix for this in the works.
+
 ## Etc
 
 For detailed information about XCom modding, please see 
@@ -114,12 +124,6 @@ For detailed information about XCom modding, please see
 on the Nexus wiki.
 
 See also [this Linux installer by wghost](https://github.com/wghost/LongWar-Linux).
-
-As I write this in early August 2014, users have reported several bugs after applying Long War to
-their XCom: EW installations on OS/X. I don't know much about modding and probably can't help with 
-these issues; I'm just focused on getting the installer script to work. Please see 
-[the official Long War mod forum](http://forums.nexusmods.com/index.php?/forum/665-xcom-file-discussions/)
-for help with the mod itself.
 
 Big ups to nexusmod user Anderkent, who first figured out how to install Long War on OS/X, 
 and of course to the authors of Long War.
