@@ -30,7 +30,7 @@ sudo ./LongWarInstaller.py --phone-home-disable
 
 * Launch the game and enjoy Long War
 
-For more information, see [the detailed installation instructions](https://github.com/timgilbert/long-war-unix-installer/docs/Installation.md).
+For more information, see [the detailed installation instructions](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/Installation.md).
 
 ## Usage
 

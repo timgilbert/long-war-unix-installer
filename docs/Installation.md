@@ -80,3 +80,8 @@ On your first mission, you'll have six operatives deployed, and they'll all be w
 
 Here they are deployed:
 ![First Mission weapons](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/images/Long-War-First-Mission-Weapons.jpg)
+
+Note that the character's weapon is called "Assualt Rifle."
+
+If you see four operatives in grey, or if their weapons say "EXALT assualt rifle", something went 
+wrong with the installation.
