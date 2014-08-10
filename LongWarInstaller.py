@@ -18,8 +18,8 @@ def main():
     group.add_argument('--uninstall', help='Uninstall given mod and exit', metavar='MOD_VERSION')
     group.add_argument('--list', action='store_true', help='List mod backups and exit')
     group.add_argument('--delete', help='Delete a backup and exit', metavar='MOD_VERSION')
-    group.add_argument('--patch-executable', nargs=2, metavar=('INPUT', 'OUTPUT'),
-                        help='Patch the given executable and exit (NOTE: not necessary!)')
+    # group.add_argument('--patch-executable', nargs=2, metavar=('INPUT', 'OUTPUT'),
+    #                     help='Patch the given executable and exit (NOTE: not necessary!)')
     group.add_argument('--phone-home-enable', action='store_true', help='Enable phoning home by modifying /etc/hosts')
     group.add_argument('--phone-home-disable', action='store_true', help='Disable phoning home by modifying /etc/hosts')
 
@@ -29,11 +29,11 @@ def main():
     logging.basicConfig(format='%(message)s', level=loglevel)
 
     try:
-        if args.patch_executable:
-            infile, outfile = args.patch_executable
-            execPatcher = ExecutablePatcher(infile, outfile)
-            execPatcher.patch()
-            return
+        # if args.patch_executable:
+        #     infile, outfile = args.patch_executable
+        #     execPatcher = ExecutablePatcher(infile, outfile)
+        #     execPatcher.patch()
+        #     return
 
         game = GameDirectory(args.game_directory)
 

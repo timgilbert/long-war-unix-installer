@@ -7,7 +7,7 @@ laid out in
 
 This script is still in active development, so while I welcome pull requests, please check with me first.
 
-# Installation for the impatient
+## Installation for the impatient
 
 **Note!** This is currently alpha-quality software. You may want to back up your installation directory 
 before you try it. If something goes wrong, enable phoning home, pull up the game's properties in Steam, 
@@ -34,9 +34,29 @@ For more information, see [the detailed installation instructions](https://githu
 
 ## Usage
 
-Docs are forthcoming. Meanwhile, `./install.py --help` works.
+`LongWarInstaller.py --help` works. Here are the main flags:
 
-### Backups
+`LongWarInstaller.py --apply path-to-installer.exe`: install the given mod, making a backup.
+
+`LongWarInstaller.py --list`: list the existing backups.
+
+`LongWarInstaller.py --uninstall Long_War_3_Beta_13-88-3-0b13`: uninstall the given mod, and 
+revert to the backup we made when we installed it.
+
+`LongWarInstaller.py --phone-home-enable` and `LongWarInstaller.py --phone-home-disable`: 
+enable or diable [phoning home](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/Installation.md#phoning-home).
+
+The following options are mostly used for testing:
+
+`LongWarInstaller.py --delete Long_War_3_Beta_13-88-3-0b13`: delete the given backup. This is
+permanent, exercise caution.
+
+`--debug`: log debug messages to the console.
+
+`--dry-run`: if this is set during installation, do not alter anything in the installed game 
+directory (but output what would be done).
+
+## Backups
 
 The script will back up the files it's about to modify before it copies anything from the mod to your 
 installed game directory. Currently the backups are stored under `Long-War-Backups` under the game 
@@ -58,29 +78,27 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 
 ## TODO
 
-* Backup renamed files from feral directory, and restore on mod uninstallation
-* Docs / man page
 * Add `--backup` flag to back up a directory without overwriting files
 * Interactive mode for script (y/n for overwriting files, etc)
 * Validate that game is EW, not EU, or better yet handle EU-only installs
   * We should at least make sure `XCOMData/XEW` exists, else exit with an error message
 * Verify mod uninstallation with git
+  * Backup renamed files from feral directory, and restore on mod uninstallation
   * Uninstall should remove `MacInit/*.ini`
-* Add docs on verifying successful installation: correct second wave options, 6 operatives in 
-  red during first mission, proper weapon names, etc.
-* Version installer, git-flow if need be, etc
+* Give a version to the installer, git-flow if need be, etc
 * Post-installation, verify that phone home is disabled and warn if not
 
 ### Blue Sky TODO
 * fork / exec as `sudo $@` to gain root privs for enable / disable hosts
 * Checksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
-  * Checksum entire insalled game tree, and verify it after backups
+  * Checksum entire insalled game tree, and verify it after backups?
 * wxPython (etc) GUI 
   * Install as an app via pyfreeze
   * But I'd like the script to be functional as well
 * Linux support
   * Some refactoring into platform-specific subclasses or whatnot
-* Handle Mac App Store installs
+* Install for Enemy Unknown
+  * Handle Mac App Store installs (only Enemy Unknown, I think?)
 * Catch exceptions at root level and have option to paste logs into pastebin or whatever
 
 ## Bugs
