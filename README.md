@@ -85,7 +85,6 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 * Verify mod uninstallation with git
   * Backup renamed files from feral directory, and restore on mod uninstallation
   * Uninstall should remove `MacInit/*.ini`
-* Give a version to the installer, git-flow if need be, etc
 * Post-installation, verify that phone home is disabled and warn if not
 
 ### Blue Sky TODO
@@ -105,7 +104,6 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 
 * Multiple applications grow the new files list in backups each time
 * Root level files are installed in `XCOMData/XEW` instead of at the root
-* Running without -d logs at INFO to file log (should be DEBUG)
 
 # State of the Mod
 

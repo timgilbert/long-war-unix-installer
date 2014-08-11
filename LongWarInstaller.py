@@ -6,35 +6,37 @@ import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, j
 import fileinput, errno
 import logging.handlers, distutils.spawn
 
+__version__ = '0.9.0'
+
 def main():
     parser = argparse.ArgumentParser(description='Install Long War on OS/X or Linux.')
     parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output on console')
     parser.add_argument('--game-directory', help='Directory to use for game installation')
     parser.add_argument('--dry-run', action='store_true', 
                         help="Log what would be done, but don't modify game directory")
+    parser.add_argument('--version', action='version', version='%(prog)s version ' + __version__)
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--apply', help='Filename for the Long War executable file', metavar='MOD_FILENAME')
     group.add_argument('--uninstall', help='Uninstall given mod and exit', metavar='MOD_VERSION')
     group.add_argument('--list', action='store_true', help='List mod backups and exit')
     group.add_argument('--delete', help='Delete a backup and exit', metavar='MOD_VERSION')
-    # group.add_argument('--patch-executable', nargs=2, metavar=('INPUT', 'OUTPUT'),
-    #                     help='Patch the given executable and exit (NOTE: not necessary!)')
     group.add_argument('--phone-home-enable', action='store_true', help='Enable phoning home by modifying /etc/hosts')
     group.add_argument('--phone-home-disable', action='store_true', help='Disable phoning home by modifying /etc/hosts')
 
     args = parser.parse_args()
 
+    # Set up basic logging
     loglevel = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(format='%(message)s', level=loglevel)
+    rootlogger = logging.getLogger()
+    console = logging.StreamHandler()
+    console.setLevel(loglevel)
+    console.setFormatter(logging.Formatter('%(message)s'))
+    rootlogger.addHandler(console)
+    rootlogger.setLevel(logging.DEBUG)
+    #logging.basicConfig(format='%(message)s', level=loglevel)
 
     try:
-        # if args.patch_executable:
-        #     infile, outfile = args.patch_executable
-        #     execPatcher = ExecutablePatcher(infile, outfile)
-        #     execPatcher.patch()
-        #     return
-
         game = GameDirectory(args.game_directory)
 
         if args.delete:
@@ -213,7 +215,7 @@ class GameDirectory(object):
         patcher = Patcher(version, self.activeBackup, self, dryRun)
         patcher.patch(extractor)
         logging.info('Applied mod version "%s" to game directory.', version)
-        logging.info('Install log available in %s', self.activeBackup.installLog)
+        logging.info('Install log available in "%s"', self.activeBackup.installLog)
 
     def deleteBackupTree(self, version):
         if version not in self.backups:
@@ -429,6 +431,7 @@ class Backup(object):
         handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)-7s %(message)s'))
         rootLogger = logging.getLogger()
         rootLogger.addHandler(handler)
+        logging.debug('Long War Installer, version {}'.format(__version__))
 
     def backupModFile(self, patchfile):
         self._touch()
