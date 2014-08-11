@@ -85,14 +85,13 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 * Verify mod uninstallation with git
   * Backup renamed files from feral directory, and restore on mod uninstallation
   * Uninstall should remove `MacInit/*.ini`
-* Post-installation, verify that phone home is disabled and warn if not
 
 ### Blue Sky TODO
 * fork / exec as `sudo $@` to gain root privs for enable / disable hosts
 * Checksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
   * Checksum entire insalled game tree, and verify it after backups?
-* wxPython (etc) GUI 
-  * Install as an app via pyfreeze
+* wxPython (or PySide, kivy, etc) GUI 
+  * Install as an app via py2app or pyinstaller
   * But I'd like the script to be functional as well
 * Linux support
   * Some refactoring into platform-specific subclasses or whatnot
@@ -104,6 +103,7 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 
 * Multiple applications grow the new files list in backups each time
 * Root level files are installed in `XCOMData/XEW` instead of at the root
+* Irritating whitespace keeps sneaking into /etc/hosts
 
 # State of the Mod
 

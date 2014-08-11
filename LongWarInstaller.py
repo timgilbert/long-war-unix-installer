@@ -26,15 +26,7 @@ def main():
 
     args = parser.parse_args()
 
-    # Set up basic logging
-    loglevel = logging.DEBUG if args.debug else logging.INFO
-    rootlogger = logging.getLogger()
-    console = logging.StreamHandler()
-    console.setLevel(loglevel)
-    console.setFormatter(logging.Formatter('%(message)s'))
-    rootlogger.addHandler(console)
-    rootlogger.setLevel(logging.DEBUG)
-    #logging.basicConfig(format='%(message)s', level=loglevel)
+    setupConsoleLogging(args.debug)
 
     try:
         game = GameDirectory(args.game_directory)
@@ -55,6 +47,14 @@ def main():
             game.phoneHomeDisable() ; return
 
         game.apply(args.apply, args.dry_run)
+
+        if game.hostsScanner.isEnabled:
+            logging.warn(textwrap.dedent('''\
+                Warning! The mod has been installed, but phoning home is not yet disabled.
+                Before you run the game, block phoning home by running:
+                    sudo ./LongWarInstaller.py --phone-home-disable'''))
+        else:
+            logging.info('Phone home is blocked. Enjoy the game!')
 
     except InnoExtractorNotFound:
         abort('''\
@@ -129,6 +129,16 @@ def getRelativePath(pathname, root):
     # Weirdly, os.path.commonprefix returns a string match instead of a directory match
     # cf http://stackoverflow.com/questions/21498939/how-to-circumvent-the-fallacy-of-pythons-os-path-commonprefix
     return os.path.relpath(pathname, os.path.commonprefix([root + os.sep, pathname]))
+
+def setupConsoleLogging(debug=False):
+    '''Set up logging to the console. If debug is true, log to the console at DEBUG (else INFO).'''
+    loglevel = logging.DEBUG if debug else logging.INFO
+    rootlogger = logging.getLogger()
+    console = logging.StreamHandler()
+    console.setLevel(loglevel)
+    console.setFormatter(logging.Formatter('%(message)s'))
+    rootlogger.addHandler(console)
+    rootlogger.setLevel(logging.DEBUG)
 
 class GameDirectory(object):
     '''Class representing an installed game directory.'''
