@@ -727,7 +727,7 @@ class ExecutablePatcher(object):
         logging.info('Patched %d strings in "%s" as "%s"', total, self.infile, self.outfile)
 
 class HostsFileScanner(object):
-    HOSTS = '/tmp/hosts'
+    HOSTS = '/etc/hosts'
     PATTERNS = [re.compile(r'^[^#\s]*\S+\s+prod\.xcom\.firaxis\.com'),
                 re.compile(r'^[^#\s]*\S+\s+prod\.xcom-ew\.firaxis\.com'),
                 re.compile(r'^\s*#\s*Long-War-Installer:')]
@@ -735,7 +735,7 @@ class HostsFileScanner(object):
         # Long-War-Installer: if the following two lines are present, XCom phone home is disabled.
         127.0.0.1 prod.xcom-ew.firaxis.com
         127.0.0.1 prod.xcom.firaxis.com
-        ''')
+        ''').strip().rstrip()
 
     def __init__(self):
         self._state = None
