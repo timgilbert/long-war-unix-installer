@@ -151,7 +151,7 @@ class GameDirectory(object):
     COOKED_PC = 'CookedPCConsole'
     LOCALIZATION = 'Localization'
     UNCOMPRESSED_SIZE = '.uncompressed_size'
-    OVERRIDE_DIRECTORY = 'Contents/Resources/XEW/MacOverrides'
+    OVERRIDE_DIRECTORY = 'Contents/Resources/MacOverrides/XEW'
     # If this is present, app has phoned home
     PHONE_HOME_INDICATOR = 'Contents/Frameworks/QuincyKit.framework'
     FERAL_MACINIT = '~/Library/Application Support/Feral Interactive/XCOM Enemy Unknown/XEW/MacInit'
@@ -236,8 +236,10 @@ class GameDirectory(object):
     def uninstall(self, version):
         if version not in self.backups:
             raise BackupVersionNotFound(version)
-        self.backups[version].uninstall()
+        self.activeBackup = self.backups[version]
+        self.activeBackup.uninstall()
         logging.info('Reverted to backup "%s"', version)
+        logging.info('Uninstall log available in "%s"', self.activeBackup.uninstallLog)
 
     def undo(self, patchname):
         logging.debug('Undoing...')
@@ -399,7 +401,7 @@ class Backup(object):
         self.appBundleRoot = os.path.join(self.root, Backup.APP_BUNDLE_DIRECTORY)
         self.modFileRoot = os.path.join(self.root, Backup.MOD_FILE_DIRECTORY)
         self.gameDirectory = gameDirectory
-        self.newFiles = []
+        self.newModFiles = []
         self.newAppBundleFiles = []
         self.metadataFile = os.path.join(self.root, Backup.METADATA_FILE)
         self.applied = False
@@ -452,7 +454,7 @@ class Backup(object):
         # will remove it when the user backs out this backup
         if not os.path.exists(gameLocation):
             logging.debug("File %s doesn't exist in game directory, marking as new", gameLocation)
-            self.newFiles.append(patchfile.relativePath)
+            self.newModFiles.append(patchfile.relativePath)
             return
 
         self._copyFile(gameLocation, backupLocation)
@@ -511,7 +513,6 @@ class Backup(object):
         with open(os.path.join(self.root, self.METADATA_FILE), 'w') as output:
             json.dump(self._serialize(), output, encoding='utf-8', 
                       indent=4, sort_keys=True, separators=(',', ': '))
-        #logging.debug('New files: %s', self.brandNewFiles)
 
     def uninstall(self):
         '''Restore all files from this backup to the game directory.'''
@@ -542,9 +543,11 @@ class Backup(object):
                 copyOrWarn(backupPath, gamePath)
 
         logging.debug('Removing new files added in patch')
-        for relativePath in self.newFiles:
-            addedPath = self.gameDirectory.getModFilePath(relativePath)
+        for addedPath in (self.gameDirectory.getModFilePath(f) for f in self.newModFiles):
             logging.debug('Removing mod file %s', addedPath)
+            removeOrWarn(addedPath)
+        for addedPath in (self.gameDirectory.getAppBundlePath(f) for f in self.newAppBundleFiles):
+            logging.debug('Removing app bundle file %s', addedPath)
             removeOrWarn(addedPath)
 
     def _getRelativeAppBundlePath(self, absolutePath):
@@ -571,13 +574,15 @@ class Backup(object):
         '''Simple-minded serialization'''
         return {
             'applied': self.applied,
-            'newFiles': self.newFiles
+            'newModFiles': self.newModFiles,
+            'newAppBundleFiles': self.newAppBundleFiles
         }
 
     def _deserialize(self, decodedJson):
         '''Simple-minded serialization'''
-        for att in ['applied', 'newFiles']:
-            setattr(self, att, decodedJson[att])
+        for attr in ['applied', 'newModFiles', 'newAppBundleFiles']:
+            if hasattr(self, attr) and attr in decodedJson:
+                setattr(self, attr, decodedJson[attr])
 
 class Patcher(object):
     '''Consolidates logic for applying a patch'''
