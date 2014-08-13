@@ -19,6 +19,7 @@
 4. Block [phoning home](#Phoning-Home).
   * After the game has phoned home one time, you'll want to disable phoning home, otherwise various parts 
     of the mod will be overwritten the next time you launch it and you'll probably crash to desktop.
+  * You should also turn off automatic updates and cloud sync from Steam.
 
 5. Launch the game.
 
@@ -76,10 +77,13 @@ You can see a list of mods that have been backed up using the `--list` option:
     The game has phoned home at least once.
     Long_War_3_Beta_13-88-3-0b13: applied at 2014-08-04 20:19:00
 
-...and should be able to roll back an installation by using the `--uninstall` option to the script. 
+The installer keeps track of what version of the mod is currently installed, and will refuse to install 
+a new version until you've rolled back to the vanilla installation. You can do so with the 
+`--uninstall` option to the script. 
 
-    % ./LongWarInstaller.py --uninstall Long_War_3_Beta_13-88-3-0b13
-    Reverted to backup "Long_War_3_Beta_13-88-3-0b13"
+    % ./LongWarInstaller.py --uninstall 
+    Reverted to backups for Long War "Long_War_3_Beta_13-88-3-0b13"
+    Uninstall log available in "/Users/whatever/Library/Application Support/Steam/SteamApps/common/XCom-Enemy-Unknown/Long-War-Backups/Long_War_3_Beta_13-88-3-0b13/uninstall.log"
 
 Each backup is roughly 21MB. You can delete one with the --delete flag, but be warned that this is 
 *permanent*.

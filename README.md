@@ -15,11 +15,11 @@ and choose "Verify Integrity of Game Cache." (This will probably re-download the
 
 * Launch the game once and quit
 * `brew install innoextract`
-* Download the installer script
-* Apply the mod:
+* Download the install script and the Windows Long War installer
+* Install the mod:
 
 ```
-./LongWarInstaller.py --apply "$HOME/Downloads/Long War 3 EW Beta 12-88-3-0b12.exe"
+./LongWarInstaller.py --install "$HOME/Downloads/Long War 3 EW Beta 12-88-3-0b12.exe"
 ```
 
 * Disable phoning home:
@@ -28,9 +28,12 @@ and choose "Verify Integrity of Game Cache." (This will probably re-download the
 sudo ./LongWarInstaller.py --phone-home-disable
 ```
 
+* Disable Steam updates and cloud sync
+
 * Launch the game and enjoy Long War
 
-For more information, see [the detailed installation instructions](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/Installation.md).
+For more information including uninstallation instructions, see 
+[the detailed installation instructions](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/Installation.md).
 
 ## Usage
 
@@ -41,12 +44,8 @@ For usage information, run `LongWarInstaller.py --help`. See also the
 
 I'd like to finish all these for a 1.0 release:
 
-* Refuse to apply a patch if a mod is already active
-  * Need to record active mods first in metadata.json
-* Verify mod uninstallation with git
-  * Backup renamed files from feral directory, and restore on mod uninstallation
+* Backup renamed files from feral directory, and restore on mod uninstallation
   * Uninstall should remove `MacInit/*.ini`
-* Change command-line arg from --apply to --install
 
 For more plans, see [TODO.md](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/TODO.md)
 
@@ -56,7 +55,7 @@ For more plans, see [TODO.md](https://github.com/timgilbert/long-war-unix-instal
 
 # State of the Mod
 
-As I write this in early August 2014, users have reported several bugs after applying Long War to
+As I write this in mid-August 2014, users have reported several bugs after applying Long War to
 their XCom: EW installations on OS/X. I don't know much about modding and probably can't help with 
 these issues; I'm just focused on getting the installer script to work. Please see 
 [the official Long War mod forum](http://forums.nexusmods.com/index.php?/forum/665-xcom-file-discussions/)
@@ -67,6 +66,9 @@ I've noticed that having lots of free RAM on launch helps a lot.
 
 There is also a bug where buying weapons will result in a CTD. A fix has been implemented for the Linux
 version of Long War, and it will eventually be released in beta 14.
+
+If you have a problem running the script, please 
+[file an issue here](https://github.com/timgilbert/long-war-unix-installer/issues).
 
 ## Etc
 

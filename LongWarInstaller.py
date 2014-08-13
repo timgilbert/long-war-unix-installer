@@ -6,25 +6,26 @@ import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, j
 import fileinput, errno
 import logging.handlers, distutils.spawn
 
-__version__ = '0.9.0'
+__version__ = '0.9.1'
 
 def main():
     parser = argparse.ArgumentParser(description=textwrap.dedent('''\
         Long War Installer version {}. For instructions, see the installer's home page
         at https://github.com/timgilbert/long-war-unix-installer/''').format(__version__))
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--install', help='Filename for the Long War executable file', metavar='MOD_FILENAME')
+    group.add_argument('--uninstall', nargs='?', const=True, metavar='MOD_VERSION',
+                       help='Roll back to a backup and exit (defaults to currently active version)')
+    group.add_argument('--list', action='store_true', help='List mod backups and exit')
+    group.add_argument('--delete', help='Delete a backup and exit', metavar='MOD_VERSION')
+    group.add_argument('--phone-home-enable', action='store_true', help='Enable phoning home by modifying /etc/hosts')
+    group.add_argument('--phone-home-disable', action='store_true', help='Disable phoning home by modifying /etc/hosts')
+
     parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output on console')
     parser.add_argument('--game-directory', help='Directory to use for game installation')
     parser.add_argument('--dry-run', action='store_true', 
                         help="Log what would be done, but don't modify game directory")
     parser.add_argument('--version', action='version', version='%(prog)s version ' + __version__)
-
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--apply', help='Filename for the Long War executable file', metavar='MOD_FILENAME')
-    group.add_argument('--uninstall', help='Uninstall given mod and exit', metavar='MOD_VERSION')
-    group.add_argument('--list', action='store_true', help='List mod backups and exit')
-    group.add_argument('--delete', help='Delete a backup and exit', metavar='MOD_VERSION')
-    group.add_argument('--phone-home-enable', action='store_true', help='Enable phoning home by modifying /etc/hosts')
-    group.add_argument('--phone-home-disable', action='store_true', help='Disable phoning home by modifying /etc/hosts')
 
     args = parser.parse_args()
 
@@ -39,7 +40,7 @@ def main():
         if args.list:
             game.list() ; return
 
-        if args.uninstall:
+        if args.uninstall is not None:
             game.uninstall(args.uninstall) ; return
 
         if args.phone_home_enable:
@@ -48,15 +49,18 @@ def main():
         if args.phone_home_disable:
             game.phoneHomeDisable() ; return
 
-        game.apply(args.apply, args.dry_run)
+        if args.install:
+            game.install(args.install, args.dry_run) 
 
-        if game.hostsScanner.isEnabled:
-            logging.warn(textwrap.dedent('''\
-                Warning! The mod has been installed, but phoning home is not yet disabled.
-                Before you run the game, block phoning home by running:
-                    sudo ./LongWarInstaller.py --phone-home-disable'''))
-        else:
-            logging.info('Phone home is blocked. Enjoy the game!')
+            if game.hostsScanner.isEnabled:
+                logging.warn(textwrap.dedent('''
+                    Warning! The mod has been installed, but phoning home is not yet disabled.
+                    Before you run the game, block phoning home by running:
+
+                        sudo ./LongWarInstaller.py --phone-home-disable'''))
+            else:
+                logging.info('\nPhone home is blocked. Enjoy the game!')
+            return
 
     except InnoExtractorNotFound:
         abort('''\
@@ -92,13 +96,31 @@ def main():
         abort('''\
             I couldn't find an Enemy Within directory! This installer only works for the games with Enemy 
             Within instaled. Get in touch via github if you want this feature.''')
+    except ActiveBackupFoundDuringInstall, e:
+        abort('''\
+            You're trying to install long war, but it has already been installed. Please uninstall 
+            the previous installation by running this script again with the --uninstall option:
+
+                ./LongWarInstaller.py --uninstall
+            ''')
+    except NoActiveBackupFoundDuringUninstall, e:
+        abort('''\
+            You're trying to uninstall long war, but I can't see a currently active version of it 
+            installed already. To force uninstallation, use the --list option to see the backups,
+            then use an argument to --uninstall to explicitly roll back to that version:
+
+                ./LongWarInstaller.py --list
+                Long_War_3_Beta_13-88-3-0b13: installer version 0.9.1, applied at 2014-08-12 23:07:19
+
+                ./LongWarInstaller.py --uninstall Long_War_3_Beta_13-88-3-0b13
+            ''')
     except GameHasNotPhonedHome, e:
         msg ='''\
             I couldn't find the Feral Interactive directory in App Support. Before you install Long War, 
             you need to make sure phoning home is not disabled, launch the game, and exit to the desktop 
             from the main menu.'''
         if not e.args[0]:           # If args[0] is true, phoning home is enabled
-            msg += '\n\n' + '''\
+            msg += '\n\n' + '''
             Note that phoning home is currently *disabled*. Enable it by running as root with the 
             --phone-home-enable option, launch the game, exit, and then running the installer as root
             again with the --phone-home-disable option to turn it off. Once that is done you can install 
@@ -164,6 +186,7 @@ class GameDirectory(object):
 
     def __init__(self, root=None):
         self.backups = {}
+        self.activeBackup = None
         if root is None:
             root = GameDirectoryFinder().find()
         if not os.path.isdir(root):
@@ -192,7 +215,10 @@ class GameDirectory(object):
                 continue # May use this location to store mod distrbution files later
             metadata = os.path.join(self.backupRoot, dirname, Backup.METADATA_FILE)
             if os.path.isfile(metadata):
-                self.backups[dirname] = Backup(dirname, self.backupRoot, self)
+                backup = Backup(dirname, self.backupRoot, self)
+                if backup.active: 
+                    self.activeBackup = backup
+                self.backups[dirname] = backup
 
     def _validateHasPhonedHome(self):
         '''Make sure the user has run the game with phone home enabled at least once, else 
@@ -220,25 +246,29 @@ class GameDirectory(object):
         for key in sorted(self.backups.keys()):
             logging.info('%s', self.backups[key])
 
-    def apply(self, filename, dryRun=False):
+    def install(self, filename, dryRun=False):
         self._validateHasPhonedHome()
         self._validateHasEnemyWith()
         extractor = Extractor(filename)
         version = extractor.modname
 
+        if self.activeBackup is not None:
+            raise ActiveBackupFoundDuringInstall
+
         if version in self.backups:
             # Could quit with an error here
-            logging.debug('Overwriting old backup for mod %s', version)
-            self.activeBackup = self.backups[version]
+            logging.info('Overwriting old backup for mod %s', version)
+            newBackup = self.backups[version]
         else:
-            self.backups[version] = Backup(version, self.backupRoot, self)
-        self.activeBackup = self.backups[version]
+            # Create new backup
+            newBackup = Backup(version, self.backupRoot, self)
+            self.activeBackup = newBackup
 
-        self.activeBackup.setupInstallLog()
-        patcher = Patcher(version, self.activeBackup, self, dryRun)
-        patcher.patch(extractor)
+        newBackup.setupInstallLog()
+        patcher = Patcher(version, newBackup, self, dryRun)
+        patcher.install(extractor)
         logging.info('Applied mod version "%s" to game directory.', version)
-        logging.info('Install log available in "%s"', self.activeBackup.installLog)
+        logging.info('Install log available in "%s"', newBackup.installLog)
 
     def deleteBackupTree(self, version):
         if version not in self.backups:
@@ -246,13 +276,19 @@ class GameDirectory(object):
         self.backups[version].deleteBackupTree()
         logging.info('Deleted backup "%s"', version)
 
-    def uninstall(self, version):
-        if version not in self.backups:
+    def uninstall(self, version=True):
+        '''Uninstall the given backup version. If version is True, uninstall the active version.'''
+        if version == True:
+            if self.activeBackup is None:
+                raise NoActiveBackupFoundDuringUninstall
+            doomedBackup = self.activeBackup
+        elif version not in self.backups:
             raise BackupVersionNotFound(version)
-        self.activeBackup = self.backups[version]
-        self.activeBackup.uninstall()
-        logging.info('Reverted to backup "%s"', version)
-        logging.info('Uninstall log available in "%s"', self.activeBackup.uninstallLog)
+        else:
+            doomedBackup = self.backups[version]
+        doomedBackup.uninstall()
+        logging.info('Reverted to backups for Long War "%s"', doomedBackup.version)
+        logging.info('Uninstall log available in "%s"', doomedBackup.uninstallLog)
 
     def undo(self, patchname):
         logging.debug('Undoing...')
@@ -280,6 +316,13 @@ class GameDirectory(object):
             logging.warn('Phone home is already enabled.')
             return
         self.hostsScanner.enable()
+
+    def nukeFeralDirectory(self):
+        '''Delete all files in the feral directory.'''
+        logging.debug('Removing files from feral directory %s...', self.feralRoot)
+        for fn in (os.path.join(self.feralRoot, f) for f in os.listdir(self.feralRoot)):
+            logging.debug('Removing feral file %s...', fn)
+            os.unlink(fn)
 
 class FeralDirectory(object):
     # Maps from paths relative to the extract directory to paths in the MacInit folder
@@ -407,7 +450,7 @@ class Backup(object):
     METADATA_FILE = 'metadata.json'
     IGNORE_FILES_IN_BACKUP = ['.DS_Store']
     # These attributes will be persisted in metadata.json
-    SERIALIZED_FIELDS = ['applied', 'newModFiles', 'newAppBundleFiles', 'installerVersion']
+    SERIALIZED_FIELDS = ['applied', 'newModFiles', 'newAppBundleFiles', 'installerVersion', 'active']
 
     def __init__(self, version, allBackupsRoot, gameDirectory):
         self.version = version
@@ -416,10 +459,11 @@ class Backup(object):
         self.appBundleRoot = os.path.join(self.root, Backup.APP_BUNDLE_DIRECTORY)
         self.modFileRoot = os.path.join(self.root, Backup.MOD_FILE_DIRECTORY)
         self.gameDirectory = gameDirectory
-        self.newModFiles = []
-        self.newAppBundleFiles = []
+        self.newModFiles = {}
+        self.newAppBundleFiles = {}
         self.metadataFile = os.path.join(self.root, Backup.METADATA_FILE)
-        self.applied = False
+        self.applied = None
+        self.active = False
         self.installerVersion = __version__
         self.totalModFiles = 0
         self.totalAppBundleFiles = 0
@@ -428,7 +472,8 @@ class Backup(object):
         self._loadMetadata()
 
     def __str__(self):
-        return '{self.version}: applied at {self.applied}'.format(self=self)
+        return ('{self.version}: installer version {self.installerVersion}, applied at ' +
+                '{self.applied}{active}').format(self=self, active=' (ACTIVE)' if self.active else '')
 
     def _loadMetadata(self):
         if not os.path.isfile(self.metadataFile):
@@ -470,7 +515,7 @@ class Backup(object):
         # will remove it when the user backs out this backup
         if not os.path.exists(gameLocation):
             logging.debug("File %s doesn't exist in game directory, marking as new", gameLocation)
-            self.newModFiles.append(patchfile.relativePath)
+            self.newModFiles[patchfile.relativePath] = True
             return
 
         self._copyFile(gameLocation, backupLocation)
@@ -496,7 +541,7 @@ class Backup(object):
             self.backupAppBundleFile(relativePath)
         else:
             logging.debug('Marking override file %s as new...', relativePath)
-            self.newAppBundleFiles.append(relativePath)
+            self.newAppBundleFiles[relativePath] = True
     
     def _copyFile(self, original, destination):
         '''Copy original to destination, creating directories if need be'''
@@ -559,12 +604,14 @@ class Backup(object):
                 copyOrWarn(backupPath, gamePath)
 
         logging.debug('Removing new files added in patch')
-        for addedPath in (self.gameDirectory.getModFilePath(f) for f in self.newModFiles):
+        for addedPath in (self.gameDirectory.getModFilePath(f) for f in self.newModFiles.keys()):
             logging.debug('Removing mod file %s', addedPath)
             removeOrWarn(addedPath)
-        for addedPath in (self.gameDirectory.getAppBundlePath(f) for f in self.newAppBundleFiles):
+        for addedPath in (self.gameDirectory.getAppBundlePath(f) for f in self.newAppBundleFiles.keys()):
             logging.debug('Removing app bundle file %s', addedPath)
             removeOrWarn(addedPath)
+        self.active = False
+        self.writeBackupMetadata()
 
     def _getRelativeAppBundlePath(self, absolutePath):
         return getRelativePath(absolutePath, self.appBundleRoot)
@@ -597,7 +644,7 @@ class Backup(object):
                 setattr(self, attr, decodedJson[attr])
 
 class Patcher(object):
-    '''Consolidates logic for applying a patch'''
+    '''Consolidates logic for installing a mod into a tree.'''
 
     def __init__(self, version, backup, gameDirectory, dryRun=False):
         self.version = version
@@ -605,12 +652,12 @@ class Patcher(object):
         self.gameDirectory = gameDirectory
         self.dryRun = dryRun
 
-    def patch(self, extractor):
-        logging.debug('Applying patch %s...', self.version)
+    def install(self, extractor):
+        logging.debug('Installing mod %s...', self.version)
 
         extractor.extract()
 
-        self.nukeFeralDirectory()
+        self.gameDirectory.nukeFeralDirectory()
 
         for modFile in extractor.patchFiles:
             self.backup.backupModFile(modFile)
@@ -624,6 +671,7 @@ class Patcher(object):
             if modFile.feralPath is not None:
                 self.copyAndRenameFeralFile(modFile)
 
+        self.backup.active = True
         self.backup.writeBackupMetadata()
 
         extractor.cleanup()
@@ -633,14 +681,6 @@ class Patcher(object):
         logging.debug('Copying mod file %s to %s...', patchfile, target)
         if not self.dryRun:
             copyOrWarn(patchfile.extractedPath, target)
-
-    def nukeFeralDirectory(self):
-        '''Delete all files in the feral directory.'''
-        logging.debug('Removing files from feral directory %s...', self.gameDirectory.feralRoot)
-        for fn in (os.path.join(self.gameDirectory.feralRoot, f) for f in os.listdir(self.gameDirectory.feralRoot)):
-            logging.debug('Removing feral file %s...', fn)
-            if not self.dryRun:
-                os.unlink(fn)
 
     def removeUncompressedSize(self, modfile):
         filename = modfile.relativePath + GameDirectory.UNCOMPRESSED_SIZE
@@ -815,5 +855,7 @@ class BackupVersionNotFound(InstallError): pass
 class PhoneHomePermissionDenied(InstallError): pass
 class GameHasNotPhonedHome(InstallError): pass
 class EnemyWithinNotFound(InstallError): pass
+class ActiveBackupFoundDuringInstall(InstallError): pass
+class NoActiveBackupFoundDuringUninstall(InstallError): pass
 
 if __name__ == '__main__': main()

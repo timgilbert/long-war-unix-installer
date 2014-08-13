@@ -15,5 +15,9 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
 * Catch exceptions at root level and have option to paste logs into pastebin or whatever
 * Mod patches / bugfixes?
 * Code could use a good refactor to a more functional style
+  * And to facilitate platform independence
+  * hostscanner stuff is clumsy
+  * Tests (once the script is broken out into independent class files)
 * Add `--backup` flag to back up a directory without overwriting files
-
+* Install script in Long-War-Backups?
+* Back up saved games /settings / etc?
