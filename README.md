@@ -101,7 +101,6 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 
 ## Bugs
 
-* Multiple applications grow the new files list in backups each time
 * Root level files are installed in `XCOMData/XEW` instead of at the root
 
 # State of the Mod
