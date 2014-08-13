@@ -63,6 +63,30 @@ OS/X [homebrew](http://brew.sh/) users can install it via:
 If you don't have homebrew, you'll want to download `innoextract` from the above site and install it
 manually.
 
+## Backups
+
+The script will back up the files it's about to modify before it copies anything from the mod to your 
+installed game directory. Currently the backups are stored under `Long-War-Backups` under the game 
+installation directory (typically `~/Library/Application Support/Steam/SteamApps/common/XCom-Enemy-Unknown`).
+
+You can see a list of mods that have been backed up using the `--list` option:
+
+    % ./LongWarInstaller.py --list
+    Phoning home is currently enabled.
+    The game has phoned home at least once.
+    Long_War_3_Beta_13-88-3-0b13: applied at 2014-08-04 20:19:00
+
+...and should be able to roll back an installation by using the `--uninstall` option to the script. 
+
+    % ./LongWarInstaller.py --uninstall Long_War_3_Beta_13-88-3-0b13
+    Reverted to backup "Long_War_3_Beta_13-88-3-0b13"
+
+Each backup is roughly 21MB. You can delete one with the --delete flag, but be warned that this is 
+*permanent*.
+
+    % ./LongWarInstaller.py --delete Long_War_3_Beta_13-88-3-0b13
+    Deleted backup "Long_War_3_Beta_13-88-3-0b13"
+
 # Verification
 
 If Long War has been installed sucessfully, you'll notice some changes:
