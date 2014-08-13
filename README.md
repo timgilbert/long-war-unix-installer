@@ -32,6 +32,8 @@ sudo ./LongWarInstaller.py --phone-home-disable
 
 * Launch the game and enjoy Long War
 
+You can uninstall the mod via `./LongWarInstaller.py --uninstall`.
+
 For more information including uninstallation instructions, see 
 [the detailed installation instructions](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/Installation.md).
 
