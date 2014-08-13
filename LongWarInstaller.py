@@ -9,7 +9,9 @@ import logging.handlers, distutils.spawn
 __version__ = '0.9.0'
 
 def main():
-    parser = argparse.ArgumentParser(description='Install Long War on OS/X or Linux.')
+    parser = argparse.ArgumentParser(description=textwrap.dedent('''\
+        Long War Installer version {}. For instructions, see the installer's home page
+        at https://github.com/timgilbert/long-war-unix-installer/''').format(__version__))
     parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output on console')
     parser.add_argument('--game-directory', help='Directory to use for game installation')
     parser.add_argument('--dry-run', action='store_true', 
@@ -86,6 +88,10 @@ def main():
         abort('''\
             Permission denied opening {}. You must run this program as root to enable or disable ''' +
             '''phoning home.'''.format(HostsFileScanner.HOSTS))
+    except EnemyWithinNotFound, e:
+        abort('''\
+            I couldn't find an Enemy Within directory! This installer only works for the games with Enemy 
+            Within instaled. Get in touch via github if you want this feature.''')
     except GameHasNotPhonedHome, e:
         msg ='''\
             I couldn't find the Feral Interactive directory in App Support. Before you install Long War, 
@@ -194,6 +200,12 @@ class GameDirectory(object):
         if not self.hasPhonedHome:
             raise GameHasNotPhonedHome(self.hostsScanner.isEnabled)
 
+    def _validateHasEnemyWith(self):
+        '''Make sure the user has run the game with phone home enabled at least once, else 
+        throw an exception.'''
+        if not os.path.isdir(os.path.join(self.root, GameDirectory.MOD_FILE_ROOT)):
+            raise EnemyWithinNotFound
+
     def list(self):
         logging.debug('Listing backups...')
         logging.info('Phoning home is currently %s.', 
@@ -210,6 +222,7 @@ class GameDirectory(object):
 
     def apply(self, filename, dryRun=False):
         self._validateHasPhonedHome()
+        self._validateHasEnemyWith()
         extractor = Extractor(filename)
         version = extractor.modname
 
@@ -393,6 +406,8 @@ class Backup(object):
     MOD_FILE_DIRECTORY = 'mod-files'
     METADATA_FILE = 'metadata.json'
     IGNORE_FILES_IN_BACKUP = ['.DS_Store']
+    # These attributes will be persisted in metadata.json
+    SERIALIZED_FIELDS = ['applied', 'newModFiles', 'newAppBundleFiles', 'installerVersion']
 
     def __init__(self, version, allBackupsRoot, gameDirectory):
         self.version = version
@@ -405,6 +420,7 @@ class Backup(object):
         self.newAppBundleFiles = []
         self.metadataFile = os.path.join(self.root, Backup.METADATA_FILE)
         self.applied = False
+        self.installerVersion = __version__
         self.totalModFiles = 0
         self.totalAppBundleFiles = 0
         self.installLog = os.path.join(self.root, 'install.log')
@@ -572,15 +588,11 @@ class Backup(object):
 
     def _serialize(self):
         '''Simple-minded serialization'''
-        return {
-            'applied': self.applied,
-            'newModFiles': self.newModFiles,
-            'newAppBundleFiles': self.newAppBundleFiles
-        }
+        return { attr: getattr(self, attr) for attr in Backup.SERIALIZED_FIELDS }
 
     def _deserialize(self, decodedJson):
-        '''Simple-minded serialization'''
-        for attr in ['applied', 'newModFiles', 'newAppBundleFiles']:
+        '''Simple-minded deserialization'''
+        for attr in Backup.SERIALIZED_FIELDS:
             if hasattr(self, attr) and attr in decodedJson:
                 setattr(self, attr, decodedJson[attr])
 
@@ -802,5 +814,6 @@ class NoGameDirectoryFound(InstallError): pass
 class BackupVersionNotFound(InstallError): pass
 class PhoneHomePermissionDenied(InstallError): pass
 class GameHasNotPhonedHome(InstallError): pass
+class EnemyWithinNotFound(InstallError): pass
 
 if __name__ == '__main__': main()

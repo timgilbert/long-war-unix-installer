@@ -80,8 +80,6 @@ no guarantees. If nothing else, you should be able to revert to your vanilla ins
 
 * Add `--backup` flag to back up a directory without overwriting files
 * Interactive mode for script (y/n for overwriting files, etc)
-* Validate that game is EW, not EU, or better yet handle EU-only installs
-  * We should at least make sure `XCOMData/XEW` exists, else exit with an error message
 * Verify mod uninstallation with git
   * Backup renamed files from feral directory, and restore on mod uninstallation
   * Uninstall should remove `MacInit/*.ini`
