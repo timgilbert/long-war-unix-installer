@@ -1,7 +1,7 @@
 # Long War installer for Mac
 
 This script is intended to install the [Long War mod](http://ufopaedia.org/index.php?title=Long_War) for 
-Firaxis' [XCom: Enemy Unknown](http://www.xcom.com/) game on OS/X. It basically automates the manual process 
+Firaxis' [XCom: Enemy Within](http://www.xcom.com/) game on OS/X. It basically automates the manual process 
 laid out in 
 [this forum post](http://forums.nexusmods.com/index.php?/topic/1918524-long-war-for-mac-osx-pointers-advice/?p=17340474).
 
