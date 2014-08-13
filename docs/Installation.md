@@ -6,7 +6,7 @@
     script somewhere (or `git clone` this project) and make it executable (`chmod +x LongWarInstaller.py`).
   * Download the Windows *Long War* installer from the "Files" tab of [its homepage](http://www.nexusmods.com/xcom/mods/88/).
     You want the Enemy Within (EW) version. As I write this, the most recent version is "Long War 3 Beta 13-88-3-0b13".
-  * Make sure you've got `innoextract` installed (see [Dependencies][#Dependencies]).
+  * Make sure you've got `innoextract` installed (see [Dependencies](#Dependencies)).
 
 2. Install *XCom: Enemy Within* from Steam.
 
