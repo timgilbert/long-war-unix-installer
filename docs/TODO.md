@@ -6,9 +6,11 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
 
 * Store total files in metadata and validate on uninstall
 * If backup version not found, list available ones
+* Log innoextract output to installation log
 
 ## Distro
 
+* Set up dist log
 * Package up .exe output as .zip, get extractor to read from it
 * Handle multiple files (for bugfixes)
 * Package up the zip file, README.html, and the script into a .dmg file

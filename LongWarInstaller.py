@@ -3,7 +3,7 @@
 '''Long War installer for OS/X.'''
 
 import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, json, datetime
-import fileinput, errno
+import fileinput, errno, zipfile
 import logging.handlers, distutils.spawn
 
 __version__ = '1.0.0'
@@ -364,7 +364,7 @@ class TempDirectory(object):
         '''Create a temp directory, returning the directory path'''
         self.tmp = tempfile.mkdtemp(prefix=self.prefix)
         logging.debug('Created temp directory %s', self.tmp)
-        return self
+        return self.tmp
 
     def __exit__(self, type, value, traceback):
         '''Remove the temp directory, if it has been created.'''
@@ -372,7 +372,7 @@ class TempDirectory(object):
             logging.debug('Removing %s', self.tmp)
             shutil.rmtree(self.tmp)
 
-class Extractor(TempDirectory):
+class AbstractExtractor(object):
     '''Base class for Inno and Zip extractors.'''
     # Root directory of mod files in the exploded archive
     MOD_FILE_ROOT = 'app'
@@ -380,17 +380,30 @@ class Extractor(TempDirectory):
     PATCH_DIRECTORY = r'XComGame'
     TEMP_PREFIX = 'LongWar_Extract_'
 
-    def __init__(self, filename):
-        super(Extractor, self).__init__()
+    def __init__(self, filename, directory=None):
+        '''Create a new instance. If directory is None, create a temp directory which will be 
+        deleted on __exit__. Otherwise, extract into directory and do not clean it up afterwards.'''
         self.filename = filename
         # modname is just the file's basename with underscores instead of spaces
-        self.modname = Extractor.modName(filename)
+        self.modname = self.modName(filename)
+        self.directory = directory
+        self.tmp = None
 
     def __enter__(self):
         '''Extract the mod files to a temp directory, then scan them'''
-        super(Extractor, self).__enter__()
-        self.extract(self.tmp)
-        self._scan(self.tmp)
+        target = self.directory
+        if target is None:
+            target = tempfile.mkdtemp(prefix=self.TEMP_PREFIX)
+            self.tmp = target
+        logging.info('Extracting mod "%s" to %s...', self.modname, target)
+        self.extract(target)
+        self._scan(target)
+
+    def __exit__(self, type, value, traceback):
+        '''Remove the temp directory, if it has been created.'''
+        if self.tmp is not None:
+            logging.debug('Removing temp extraction directory %s', self.tmp)
+            shutil.rmtree(self.tmp)
 
     # Could use @abstractmethod per http://stackoverflow.com/a/13646263/87990
     def extract(self, extractRoot):
@@ -421,27 +434,28 @@ class Extractor(TempDirectory):
                         self.patchFiles.append(patchfile)
         logging.debug('Found %d mod files in installer', len(self.patchFiles))
 
+    # TODO this should be a function
     @staticmethod
     def modName(path):
         return os.path.splitext(os.path.basename(path))[0].replace(' ', '_')
 
     @staticmethod
-    def getExtractor(path):
+    def getExtractor(installationFilePath, targetDirectory=None):
         '''Factory method - return the correct instance based on the file's extension.'''
         classmap = {'.exe': InnoExtractor, '.zip': ZipExtractor}
-        _, extension = os.path.splitext(path)
-        return classmap[extension](path)
+        _, extension = os.path.splitext(installationFilePath)
+        klass = classmap[extension]
+        return klass(installationFilePath, targetDirectory)
 
-class InnoExtractor(Extractor):
+class InnoExtractor(AbstractExtractor):
     TEMP_PREFIX = 'LongWar_ExtInno_'
-    def __init__(self, filename):
-        super(InnoExtractor, self).__init__(filename)
+    def __init__(self, filename, directory=None):
+        super(InnoExtractor, self).__init__(filename, directory)
         self.innoextract = distutils.spawn.find_executable('innoextract')
 
     def extract(self, extractRoot):
         '''Extract the mod files to a temp directory, then scan them'''
         self.validate()
-        logging.info('Extracting mod "{}"...'.format(self.modname))
 
         command = [self.innoextract, '--extract', '--progress=0', '--color=0', '--silent', 
                    '--output-dir', extractRoot, self.filename]
@@ -462,12 +476,13 @@ class InnoExtractor(Extractor):
         '''Make sure the relevant stuff is present, else throw an error'''
         if self.innoextract is None:
             raise InnoExtractorNotFound()
+        # Probably should do this elsewhere
         if not os.path.isfile(self.filename):
             raise LongWarFileNotFound(self.filename)
 
-class ZipExtractor(Extractor):
+class ZipExtractor(AbstractExtractor):
     TEMP_PREFIX = 'LongWar_ExtZip_'
-    def __init__(self, filename):
+    def __init__(self, filename, directory=None):
         super(ZipExtractor, self).__init__(filename)
 
     def extract(self):
@@ -482,7 +497,7 @@ class PatchFile(object):
         self.extractRoot = extractRoot
         self.extractedPath = os.path.join(extractDir, filename)
         # Path relative to the 'app' directory
-        self.relativePath = getRelativePath(self.extractedPath, os.path.join(self.extractRoot, Extractor.MOD_FILE_ROOT))
+        self.relativePath = getRelativePath(self.extractedPath, os.path.join(self.extractRoot, AbstractExtractor.MOD_FILE_ROOT))
         _, extension = os.path.splitext(self.extractedPath)
         self.isUpk = GameDirectory.COOKED_PC in self.extractedPath and extension in ['.upk']
         self.isOverride = GameDirectory.LOCALIZATION in self.extractedPath and extension in ['.int', '.esn']
@@ -935,7 +950,7 @@ class Distribution(object):
 
     def __init__(self, files):
         self.files = files
-        self.version = Extractor.modName(files[0])
+        self.version = AbstractExtractor.modName(files[0])
         self.dmg = os.path.join(Distribution.TARGET_DIRECTORY, self.version + '.dmg')
 
     def __repr__(self):
@@ -947,7 +962,7 @@ class Distribution(object):
         with TempDirectory('LongWar_Dist_') as distDir, TempDirectory('LongWar_DistZip_') as zipDir: 
             for filename in self.files:
                 logging.debug('Extracting %s', filename)
-                with Extractor.getExtractor(filename) as extracted:
+                with AbstractExtractor.getExtractor(filename, zipDir) as extracted:
                     logging.debug('Huzzah')
 
         return self.dmg
