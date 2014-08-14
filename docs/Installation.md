@@ -85,7 +85,7 @@ a new version until you've rolled back to the vanilla installation. You can do s
     Reverted to backups for Long War "Long_War_3_Beta_13-88-3-0b13"
     Uninstall log available in "/Users/whatever/Library/Application Support/Steam/SteamApps/common/XCom-Enemy-Unknown/Long-War-Backups/Long_War_3_Beta_13-88-3-0b13/uninstall.log"
 
-Each backup is roughly 21MB. You can delete one with the --delete flag, but be warned that this is 
+Each backup is roughly 27MB. You can delete one with the --delete flag, but be warned that this is 
 *permanent*.
 
     % ./LongWarInstaller.py --delete Long_War_3_Beta_13-88-3-0b13

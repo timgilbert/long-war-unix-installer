@@ -321,8 +321,9 @@ class GameDirectory(object):
         '''Delete all files in the feral directory.'''
         logging.debug('Removing files from feral directory %s...', self.feralRoot)
         for fn in (os.path.join(self.feralRoot, f) for f in os.listdir(self.feralRoot)):
+            if os.path.isdir(fn): continue # skip .git
             logging.debug('Removing feral file %s...', fn)
-            os.unlink(fn)
+            removeOrWarn(fn)
 
 class FeralDirectory(object):
     # Maps from paths relative to the extract directory to paths in the MacInit folder
@@ -447,6 +448,7 @@ class Backup(object):
     # in the installed game directory (OS/X)
     APP_BUNDLE_DIRECTORY = 'app-bundle'
     MOD_FILE_DIRECTORY = 'mod-files'
+    FERAL_DIRECTORY = 'feral'
     METADATA_FILE = 'metadata.json'
     IGNORE_FILES_IN_BACKUP = ['.DS_Store']
     # These attributes will be persisted in metadata.json
@@ -458,6 +460,7 @@ class Backup(object):
         self.root = os.path.join(allBackupsRoot, version)
         self.appBundleRoot = os.path.join(self.root, Backup.APP_BUNDLE_DIRECTORY)
         self.modFileRoot = os.path.join(self.root, Backup.MOD_FILE_DIRECTORY)
+        self.feralRoot = os.path.join(self.root, Backup.FERAL_DIRECTORY)
         self.gameDirectory = gameDirectory
         self.newModFiles = {}
         self.newAppBundleFiles = {}
@@ -506,23 +509,23 @@ class Backup(object):
         rootLogger.addHandler(handler)
         logging.debug('Long War Installer, version {}'.format(__version__))
 
-    def backupModFile(self, patchfile):
+    def backupModFile(self, patchFile):
         self._touch()
-        backupLocation = self._getBackupModPath(patchfile.relativePath)
-        gameLocation = self.gameDirectory.getModFilePath(patchfile.relativePath)
+        backupLocation = self._getBackupModPath(patchFile.relativePath)
+        gameLocation = self.gameDirectory.getModFilePath(patchFile.relativePath)
 
         # Check to see whether the file already exists in the game directory; if it doesn't we 
         # will remove it when the user backs out this backup
         if not os.path.exists(gameLocation):
             logging.debug("File %s doesn't exist in game directory, marking as new", gameLocation)
-            self.newModFiles[patchfile.relativePath] = True
+            self.newModFiles[patchFile.relativePath] = True
             return
 
         self._copyFile(gameLocation, backupLocation)
         self.totalModFiles += 1
 
         # Check for .uncompressed_size files
-        if patchfile.isUpk:
+        if patchFile.isUpk:
             # TODO Make this a gameDirectory method returning None or pathname
             uncompressed = gameLocation + GameDirectory.UNCOMPRESSED_SIZE
             if os.path.isfile(uncompressed):
@@ -530,9 +533,9 @@ class Backup(object):
                 # This is slightly dirty
                 self._copyFile(uncompressed, backupLocation + GameDirectory.UNCOMPRESSED_SIZE)
 
-    def backupOverrideFile(self, patchfile):
+    def backupOverrideFile(self, patchFile):
         '''Back up a localization file to the override directory inside the .app bundle'''
-        filename = os.path.basename(patchfile.extractedPath)
+        filename = os.path.basename(patchFile.extractedPath)
         # TODO: this should be a gameDirectory method too
         relativePath = os.path.join(GameDirectory.OVERRIDE_DIRECTORY, filename)
         gameLocation = self.gameDirectory.getAppBundlePath(relativePath)
@@ -542,6 +545,15 @@ class Backup(object):
         else:
             logging.debug('Marking override file %s as new...', relativePath)
             self.newAppBundleFiles[relativePath] = True
+    
+    def backupFeralDirectory(self):
+        '''Copy all of the files in the feral MacInit directory to the backup'''
+        for filename in os.listdir(self.gameDirectory.feralRoot):
+            original = os.path.join(self.gameDirectory.feralRoot, filename)
+            if not os.path.isfile(original): continue
+            target = os.path.join(self.feralRoot, filename)
+            logging.debug('Backing up feral file %s', target)
+            self._copyFile(original, target)
     
     def _copyFile(self, original, destination):
         '''Copy original to destination, creating directories if need be'''
@@ -582,26 +594,29 @@ class Backup(object):
         # This could use some refactoring for DRY-related maladies
         logging.debug('Reverting app bundle files from %s to %s', self.version, self.gameDirectory.root)
         for root, dirs, files in os.walk(self.appBundleRoot):
-            for filename in files:
-                if filename in Backup.IGNORE_FILES_IN_BACKUP:
-                    continue
-                absoluteBackupPath = os.path.join(root, filename)
-                relativePath = self._getRelativeAppBundlePath(absoluteBackupPath)
+            for backupPath in (os.path.join(root, f) for f in files if f not in Backup.IGNORE_FILES_IN_BACKUP):
+                relativePath = self._getRelativeAppBundlePath(backupPath)
                 gamePath = self.gameDirectory.getAppBundlePath(relativePath)
-                logging.debug('Restoring app bundle path %s to %s', absoluteBackupPath, gamePath)
-                copyOrWarn(absoluteBackupPath, gamePath)
+                logging.debug('Restoring app bundle path %s to %s', backupPath, gamePath)
+                copyOrWarn(backupPath, gamePath)
 
         logging.debug('Reverting mod files from %s to %s', self.version, self.gameDirectory.root)
         for root, dirs, files in os.walk(self.modFileRoot):
-            for filename in files:
-                if filename in Backup.IGNORE_FILES_IN_BACKUP:
-                    continue
-                backupPath = os.path.join(root, filename)
+            for backupPath in (os.path.join(root, f) for f in files if f not in Backup.IGNORE_FILES_IN_BACKUP):
                 relativePath = self._getRelativeModFilePath(backupPath)
                 gamePath = self.gameDirectory.getModFilePath(relativePath)
-                # logging.debug('#B %s\n#R %s\n#G %s', backupPath, relativePath, gamePath)
                 logging.debug('Restoring mod file path %s to %s', backupPath, gamePath)
                 copyOrWarn(backupPath, gamePath)
+
+        logging.debug('Reverting feral files from %s to %s', self.version, self.feralRoot)
+        self.gameDirectory.nukeFeralDirectory()
+        # This should probably be a function
+        for filename in os.listdir(self.feralRoot):
+            original = os.path.join(self.feralRoot, filename)
+            if not os.path.isfile(original): continue
+            target = os.path.join(self.gameDirectory.feralRoot, filename)
+            logging.debug('Restoring feral file %s', original)
+            copyOrWarn(original, target)
 
         logging.debug('Removing new files added in patch')
         for addedPath in (self.gameDirectory.getModFilePath(f) for f in self.newModFiles.keys()):
@@ -631,6 +646,9 @@ class Backup(object):
         if not os.path.isdir(self.appBundleRoot):
             logging.debug('Creating new app bundle backup directory at %s', self.appBundleRoot)
             os.makedirs(self.appBundleRoot)
+        if not os.path.isdir(self.feralRoot):
+            logging.debug('Creating new feral backup directory at %s', self.feralRoot)
+            os.makedirs(self.feralRoot)
         self.applied = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     def _serialize(self):
@@ -657,6 +675,8 @@ class Patcher(object):
 
         extractor.extract()
 
+        # Back up feral files, then nuke feral directory, then copy and rename new feral files
+        self.backup.backupFeralDirectory()
         self.gameDirectory.nukeFeralDirectory()
 
         for modFile in extractor.patchFiles:
@@ -688,7 +708,7 @@ class Patcher(object):
         if os.path.exists(uncompressed):
             logging.debug('Removing uncompressed file %s', uncompressed)
             if not self.dryRun:
-                os.unlink(uncompressed)
+                removeOrWarn(uncompressed)
 
     def copyOverrideFile(self, patchfile):
         target = self.gameDirectory.getAppBundlePath(patchfile.relativePath)
