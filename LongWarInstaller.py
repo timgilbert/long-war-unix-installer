@@ -968,7 +968,7 @@ class Distribution(object):
     def __init__(self, files):
         self.files = files
         self.version = AbstractExtractor.modName(files[0])
-        self.dmg = os.path.join(Distribution.TARGET_DIRECTORY, self.version + '.dmg')
+        self.dmg = os.path.join(Distribution.TARGET_DIRECTORY, self.version + '.OSX.dmg')
         # For now we're assuming that we run --dist from the installer script itself
         self.script = os.path.realpath(__file__)
 
