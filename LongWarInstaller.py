@@ -385,6 +385,7 @@ class AbstractExtractor(object):
         deleted on __exit__. Otherwise, extract into directory and do not clean it up afterwards.'''
         self.filename = filename
         # modname is just the file's basename with underscores instead of spaces
+        # XXX FIXME - modname member, modName() method, yikes!
         self.modname = self.modName(filename)
         self.directory = directory
         self.tmp = None
@@ -432,7 +433,7 @@ class AbstractExtractor(object):
                     if re.search(r'txt|jpg$', filename):
                         patchfile = PatchFile(filename, root, extractRoot)
                         self.patchFiles.append(patchfile)
-        logging.debug('Found %d mod files in installer', len(self.patchFiles))
+        logging.debug('Extracted %d mod files from %s', len(self.patchFiles), self.modname)
 
     # TODO this should be a function
     @staticmethod
@@ -966,6 +967,13 @@ class Distribution(object):
                     logging.debug('Huzzah')
 
         return self.dmg
+
+    def createZip(self, distDir):
+        with TempDirectory('LongWar_DistZip_') as zipDir: 
+            for filename in self.files:
+                logging.debug('Extracting %s', filename)
+                with AbstractExtractor.getExtractor(filename, zipDir) as extracted:
+                    logging.debug('Huzzah')
 
 # Errors
 class InstallError(Exception): pass
