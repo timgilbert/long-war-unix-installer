@@ -45,7 +45,7 @@ For usage information, run `LongWarInstaller.py --help`. See also the
 [installation instructions](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/Installation.md).
 
 
-## Known Bugs
+## Known Bugs (in the installer)
 
 * Root level files are installed in `XCOMData/XEW` instead of at the root
 

@@ -10,11 +10,23 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
 ## Distro
 
 * Package up .exe output as .zip, get extractor to read from it
-* Package up the zip files and the script into a .dmg file
+* Handle multiple files (for bugfixes)
+* Package up the zip file, README.html, and the script into a .dmg file
   * Incorporate the Linux fixes for beta 13
-  * Brief README.html to redirect to github docs
+  * Rudimentary substitution in README - add package version, source files
 * Store original distro sources in backups, so user doesn't need .dmg to roll back 
   to a previous mod version (+12MB per backup)
+* Brief docs
+
+## Refactoring
+
+* More functional and pythonic overall
+* Factor out directory-remapping stuff
+* More DRY atttention is needed
+* Platform independence is not a crime
+* hostscanner stuff is kind of goofy
+* Tests (once the script is broken out into independent class files)
+  * Should be able to set up test distros, etc
 
 ## GUI
 
@@ -32,12 +44,6 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
   * Some refactoring into platform-specific subclasses or whatnot
 * Install for Enemy Unknown
   * Handle Mac App Store installs (only Enemy Unknown, I think?)
-* Mod patches / bugfixes?
-* Code could use a good refactor to a more functional style
-  * And to facilitate platform independence
-  * hostscanner stuff is clumsy
-  * Tests (once the script is broken out into independent class files)
 * Add `--backup` flag to back up a directory without overwriting files
-* Install script in Long-War-Backups?
 * Back up saved games /settings / etc?
 * Zip backups? Seems to only go from 27MB to 15MB
