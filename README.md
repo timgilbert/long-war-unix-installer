@@ -42,14 +42,6 @@ For more information including uninstallation instructions, see
 For usage information, run `LongWarInstaller.py --help`. See also the 
 [installation instructions](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/Installation.md).
 
-# TODO
-
-I'd like to finish all these for a 1.0 release:
-
-* Backup renamed files from feral directory, and restore on mod uninstallation
-  * Uninstall should remove `MacInit/*.ini`
-
-For more plans, see [TODO.md](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/TODO.md)
 
 ## Known Bugs
 
@@ -83,3 +75,5 @@ See also [this Linux installer by wghost](https://github.com/wghost/LongWar-Linu
 Big ups to nexusmod user Anderkent, who first figured out how to install Long War on OS/X, and to 
 wghost81 who has forged ahead with the Linux version, and of course to the authors of Long War
 without whom none of this would be possible.
+
+For future plans, see [TODO.md](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/TODO.md)
