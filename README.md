@@ -7,9 +7,11 @@ laid out in
 
 This script is still in active development, so while I welcome pull requests, please check with me first.
 
+Note that this only works with the Steam version of Enemy Unknown, and you must have the Enemy Within expansion.
+
 ## Installation for the impatient
 
-**Note!** This is currently alpha-quality software. You may want to back up your installation directory 
+**Note!** This is currently beta-quality software. You may want to back up your installation directory 
 before you try it. If something goes wrong, enable phoning home, pull up the game's properties in Steam, 
 and choose "Verify Integrity of Game Cache." (This will probably re-download the entire game.)
 
