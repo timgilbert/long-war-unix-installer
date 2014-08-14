@@ -19,6 +19,7 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
 * Store original distro sources in backups, so user doesn't need .dmg to roll back 
   to a previous mod version (+12MB per backup)
 * Brief docs
+* Make the .dmg look nice, for instance via http://stackoverflow.com/a/1513578/87990
 
 ## Refactoring
 

@@ -448,6 +448,21 @@ class AbstractExtractor(object):
         klass = classmap[extension]
         return klass(installationFilePath, targetDirectory)
 
+# TODO move this somewhere logical
+def runCommand(command):
+    '''Run the given command list via subprocess.call() and return the exit value'''
+    # A fancier script would log innoextract output to the log files if we're at debug
+    if isDebug():
+        stdout, stderr = None, None
+    else:
+        DEVNULL = open(os.devnull, 'w') # squash output
+        stdout, stderr = DEVNULL, DEVNULL
+
+    logging.debug('Running command: %s', ' '.join(command))
+    result = subprocess.call(command, stdout=stdout, stderr=stderr)
+    logging.debug('Return value: %s', result)
+    return result
+
 class InnoExtractor(AbstractExtractor):
     TEMP_PREFIX = 'LongWar_ExtInno_'
     def __init__(self, filename, directory=None):
@@ -458,18 +473,19 @@ class InnoExtractor(AbstractExtractor):
         '''Extract the mod files to a temp directory, then scan them'''
         self.validate()
 
-        command = [self.innoextract, '--extract', '--progress=0', '--color=0', '--silent', 
+        command = [self.innoextract, '--extract', '--progress=0', '--color=0', #'--silent', 
                    '--output-dir', extractRoot, self.filename]
 
-        # A fancier script would log innoextract output to the log files if we're at debug
-        if not isDebug():
-            DEVNULL = open(os.devnull, 'w') # squash output
-            stdout, stderr = DEVNULL, DEVNULL
-        else:
-            stdout, stderr = None, None
+        # # A fancier script would log innoextract output to the log files if we're at debug
+        # if not isDebug():
+        #     DEVNULL = open(os.devnull, 'w') # squash output
+        #     stdout, stderr = DEVNULL, DEVNULL
+        # else:
+        #     stdout, stderr = None, None
 
-        logging.debug('Running command: %s', ' '.join(command))
-        result = subprocess.call(command, stdout=stdout, stderr=stderr)
+        # logging.debug('Running command: %s', ' '.join(command))
+        # result = subprocess.call(command, stdout=stdout, stderr=stderr)
+        result = runCommand(command)
         if result != 0:
             raise InnoExtractionFailed('Running "{}" returned {}!'.format(' '.join(command), result))
 
@@ -953,27 +969,62 @@ class Distribution(object):
         self.files = files
         self.version = AbstractExtractor.modName(files[0])
         self.dmg = os.path.join(Distribution.TARGET_DIRECTORY, self.version + '.dmg')
+        # For now we're assuming that we run --dist from the installer script itself
+        self.script = os.path.realpath(__file__)
 
     def __repr__(self):
         return '<Distribution {v}, {n} files>'.format(v=self.version, n=len(self.files))
 
     def create(self):
+        '''Create a .dmg file and return its location'''
         logging.debug('Creating distribution based on %s...', self.files)
 
-        with TempDirectory('LongWar_Dist_') as distDir, TempDirectory('LongWar_DistZip_') as zipDir: 
-            for filename in self.files:
-                logging.debug('Extracting %s', filename)
-                with AbstractExtractor.getExtractor(filename, zipDir) as extracted:
-                    logging.debug('Huzzah')
+        with TempDirectory('LongWar_Dist_') as distDir:
+            zipFile = self.createZip(distDir)
+            logging.debug('Created zip archive %s', zipFile)
+            # Copy script to dist directory
+            shutil.copy2(self.script, distDir)
+            logging.debug('Copied %s, version %s, to %s', self.script, __version__, distDir)
+            self.copyReadmeHtml(distDir)
+
+            self.createDmg(self.dmg, distDir)
 
         return self.dmg
 
+    def copyReadmeHtml(self, distDir):
+        '''Copy the README.html file from the doc/ directory into the dist directory, replaceing its values.'''
+        # This is the simple version
+        html = os.path.join(os.path.dirname(self.script), 'docs', 'README.html')
+        shutil.copy2(html, distDir)
+        logging.debug('Copied README %s to %s', html, distDir)
+
     def createZip(self, distDir):
+        '''Extract each file from self.filenames in turn, with newer files overwriting older ones, into a
+        temp directory. Create a zip file in distDir with a name based on self.version, and return its path.'''
+        zipName = os.path.join(distDir, self.version + '.OSX.zip')
         with TempDirectory('LongWar_DistZip_') as zipDir: 
+            # Extract every file to a directory
             for filename in self.files:
                 logging.debug('Extracting %s', filename)
                 with AbstractExtractor.getExtractor(filename, zipDir) as extracted:
                     logging.debug('Huzzah')
+            # Now create a zip file
+            with zipfile.ZipFile(zipName, 'w', zipfile.ZIP_DEFLATED) as distZip:
+                for root, dirs, files in os.walk(zipDir):
+                    for basename in files:
+                        filename = os.path.join(root, basename)
+                        if os.path.isfile(filename): # regular files only
+                            archivePath = os.path.join(os.path.relpath(root, zipDir), basename)
+                            logging.debug('Adding %s to archive as %s', filename, archivePath)
+                            distZip.write(filename, archivePath)
+        return zipName
+
+    def createDmg(self, dmg, distDir):
+        '''Create a .dmg image in the given file containing the directory given.'''
+        volname = 'Long War Installer'
+        command = ['hdiutil', 'create', dmg, '-volname', volname, '-fs', 'HFS+', '-srcfolder', distDir]
+        result = runCommand(command)
+        logging.debug('Created %s from %s, return value %s', dmg, distDir, result)
 
 # Errors
 class InstallError(Exception): pass
