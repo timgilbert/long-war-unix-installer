@@ -16,7 +16,6 @@ before you try it. If something goes wrong, enable phoning home, pull up the gam
 and choose "Verify Integrity of Game Cache." (This will probably re-download the entire game.)
 
 * Launch the game once and quit
-* `brew install innoextract`
 * Download the [OS/X Long War installer `.dmg` file](http://www.nexusmods.com/xcom/mods/88/) and double-click it
 * Install the mod:
 

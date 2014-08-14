@@ -8,7 +8,7 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
 * If backup version not found, list available ones
 * Log innoextract output to installation log
 
-## Distro
+## Distro (in `dist` branch)
 
 * Set up dist log
 * Package up .exe output as .zip, get extractor to read from it
