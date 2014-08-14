@@ -6,7 +6,7 @@ import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, j
 import fileinput, errno
 import logging.handlers, distutils.spawn
 
-__version__ = '0.9.1'
+__version__ = '1.0.0'
 
 def main():
     parser = argparse.ArgumentParser(description=textwrap.dedent('''\
