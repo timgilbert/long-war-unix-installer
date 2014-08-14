@@ -16,6 +16,7 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
 * Package up the zip file, README.html, and the script into a .dmg file
   * Incorporate the Linux fixes for beta 13
   * Rudimentary substitution in README - add package version, source files
+    *Maybe just add some JSON, have the file dynamically replace it
 * Store original distro sources in backups, so user doesn't need .dmg to roll back 
   to a previous mod version (+12MB per backup)
 * Brief docs

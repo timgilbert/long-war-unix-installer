@@ -17,14 +17,15 @@ and choose "Verify Integrity of Game Cache." (This will probably re-download the
 
 * Launch the game once and quit
 * `brew install innoextract`
-* Download the install script and the Windows Long War installer
+* Download the [OS/X Long War installer `.dmg` file](http://www.nexusmods.com/xcom/mods/88/) and double-click it
 * Install the mod:
 
 ```
-./LongWarInstaller.py --install "$HOME/Downloads/Long War 3 EW Beta 12-88-3-0b12.exe"
+% cd /Volumes/Long-War-Mac-Installer
+% ./LongWarInstaller.py --install
 ```
 
-* Disable phoning home:
+* Disable phoning home by modifying `/etc/hosts`:
 
 ```
 sudo ./LongWarInstaller.py --phone-home-disable
@@ -36,7 +37,7 @@ sudo ./LongWarInstaller.py --phone-home-disable
 
 You can uninstall the mod via `./LongWarInstaller.py --uninstall`.
 
-For more information including uninstallation instructions, see 
+For more information, see 
 [the detailed installation instructions](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/Installation.md).
 
 ## Usage

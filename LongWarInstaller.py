@@ -968,7 +968,7 @@ class Distribution(object):
     def __init__(self, files):
         self.files = files
         self.version = AbstractExtractor.modName(files[0])
-        self.dmg = os.path.join(Distribution.TARGET_DIRECTORY, self.version + '.OSX.dmg')
+        self.dmg = os.path.join(Distribution.TARGET_DIRECTORY, self.version + '-OSX.dmg')
         # For now we're assuming that we run --dist from the installer script itself
         self.script = os.path.realpath(__file__)
 
@@ -1001,7 +1001,7 @@ class Distribution(object):
     def createZip(self, distDir):
         '''Extract each file from self.filenames in turn, with newer files overwriting older ones, into a
         temp directory. Create a zip file in distDir with a name based on self.version, and return its path.'''
-        zipName = os.path.join(distDir, self.version + '.OSX.zip')
+        zipName = os.path.join(distDir, self.version + '-OSX.zip')
         with TempDirectory('LongWar_DistZip_') as zipDir: 
             # Extract every file to a directory
             for filename in self.files:
@@ -1014,14 +1014,17 @@ class Distribution(object):
                     for basename in files:
                         filename = os.path.join(root, basename)
                         if os.path.isfile(filename): # regular files only
-                            archivePath = os.path.join(os.path.relpath(root, zipDir), basename)
+                            # FIXME: relapth still broken
+                            # archivePath = os.path.join(os.path.relpath(root, relRoot), self.version + '-OSX', basename)
+                            archivePath = os.path.join(self.version + '-OSX', os.path.relpath(root, distDir), basename)
                             logging.debug('Adding %s to archive as %s', filename, archivePath)
                             distZip.write(filename, archivePath)
         return zipName
 
     def createDmg(self, dmg, distDir):
         '''Create a .dmg image in the given file containing the directory given.'''
-        volname = 'Long War Installer'
+        volname = 'Long-War-Mac-Installer'
+        logging.info('Creating disk image "%s"...', dmg)
         command = ['hdiutil', 'create', dmg, '-volname', volname, '-fs', 'HFS+', '-srcfolder', distDir]
         result = runCommand(command)
         logging.debug('Created %s from %s, return value %s', dmg, distDir, result)
