@@ -6,6 +6,34 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
 
 * Store total files in metadata and validate on uninstall
 * If backup version not found, list available ones
+* Log innoextract output to installation log
+
+## Distro (in `dist` branch)
+
+* Set up dist log
+* Package up .exe output as .zip, get extractor to read from it
+* Handle multiple files (for bugfixes)
+* Package up the zip file, README.html, and the script into a .dmg file
+  * Incorporate the Linux fixes for beta 13
+  * Rudimentary substitution in README - add package version, source files
+    *Maybe just add some JSON, have the file dynamically replace it
+* Store original distro sources in backups, so user doesn't need .dmg to roll back 
+  to a previous mod version (+12MB per backup)
+* Brief docs
+* Make the .dmg look nice, for instance via http://stackoverflow.com/a/1513578/87990
+* Update docs to reflect running from .dmg
+* Have script look for Long_War_*.zip as default argument to --install
+* Zip file has "app" at root, would be better to have modname/app
+
+## Refactoring
+
+* More functional and pythonic overall
+* Factor out directory-remapping stuff
+* More DRY atttention is needed
+* Platform independence is not a crime
+* hostscanner stuff is kind of goofy
+* Tests (once the script is broken out into independent class files)
+  * Should be able to set up test distros, etc
 
 ## GUI
 
@@ -23,12 +51,6 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
   * Some refactoring into platform-specific subclasses or whatnot
 * Install for Enemy Unknown
   * Handle Mac App Store installs (only Enemy Unknown, I think?)
-* Mod patches / bugfixes?
-* Code could use a good refactor to a more functional style
-  * And to facilitate platform independence
-  * hostscanner stuff is clumsy
-  * Tests (once the script is broken out into independent class files)
 * Add `--backup` flag to back up a directory without overwriting files
-* Install script in Long-War-Backups?
 * Back up saved games /settings / etc?
 * Zip backups? Seems to only go from 27MB to 15MB
