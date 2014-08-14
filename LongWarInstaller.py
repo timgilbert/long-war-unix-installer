@@ -20,6 +20,8 @@ def main():
     group.add_argument('--delete', help='Delete a backup and exit', metavar='MOD_VERSION')
     group.add_argument('--phone-home-enable', action='store_true', help='Enable phoning home by modifying /etc/hosts')
     group.add_argument('--phone-home-disable', action='store_true', help='Disable phoning home by modifying /etc/hosts')
+    group.add_argument('--dist', nargs='+', help='Build distribution with files as input', metavar='file')
+    group.add_argument('--hmm', action='store_true')
 
     parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output on console')
     parser.add_argument('--game-directory', help='Directory to use for game installation')
@@ -32,6 +34,10 @@ def main():
     setupConsoleLogging(args.debug)
 
     try:
+        if args.dist is not None:
+            make_distribution(args.dist)
+            return
+
         game = GameDirectory(args.game_directory)
 
         if args.delete:
@@ -61,6 +67,8 @@ def main():
             else:
                 logging.info('\nPhone home is blocked. Enjoy the game!')
             return
+
+        raise NotImplementedError('Whoops! Not sure what to do', args)
 
     except InnoExtractorNotFound:
         abort('''\
@@ -129,6 +137,13 @@ def main():
     except (OSError, IOError), e:
         # This is mildly sloppy
         abort("Can't access {}: {}".format(e.filename, e.strerror))
+
+def make_distribution(files):
+    '''Given a list of filenames, extract each one in turn into a distribution directory. Then 
+    copy the script and README.html to it and make a .dmg image based on the first filename.'''
+    dist = Distribution(files)
+    dmg = dist.create()
+    logging.info('Created distribution %s as %s', dist, dmg)
 
 def abort(errmsg):
     logging.error(textwrap.dedent(errmsg))
@@ -335,26 +350,43 @@ class FeralDirectory(object):
         copied to, or None if it shouldn't be copied there.'''
         return cls.RENAME_PATHS.get(relativePath, None)
 
-class Extractor(object):
+class TempDirectory(object):
+    '''Mixin class for dealing with temp files'''
+    TEMP_PREFIX = 'DefaultTmpPrefix_'
+    def __init__(self):
+        self.tmp = None
+
+    def __enter__(self):
+        '''Create a temp directory and store it in self.tmp'''
+        self.tmp = tempfile.mkdtemp(prefix=self.TEMP_PREFIX)
+
+    def __exit__(self, type, value, traceback):
+        '''Remove the temp directory, if it has been created.'''
+        if self.tmp is not None:
+            logging.debug('Removing %s', self.tmp)
+            shutil.rmtree(self.tmp)
+
+class Extractor(TempDirectory):
     '''Extracts files from the InnoInstall packages.'''
     # Root directory of mod files in the exploded archive
     MOD_FILE_ROOT = 'app'
     SKIP_DIRECTORY = 'Long War Files'
     PATCH_DIRECTORY = r'XComGame'
+    TEMP_PREFIX = 'LongWarInstaller_'
 
     def __init__(self, filename):
+        super(self, TempDirectory).__init__(self)
         self.filename = filename
         # modname is just the file's basename with underscores instead of spaces
-        self.modname = os.path.splitext(os.path.basename(filename))[0].replace(' ', '_')
+        self.modname = Extractor.modname(filename)
         self.innoextract = distutils.spawn.find_executable('innoextract')
-        self.tmp = None
 
     def extract(self):
         '''Extract the mod files to a temp directory, then scan them'''
         self.validate()
         logging.info('Extracting mod "{}"...'.format(self.modname))
 
-        self.tmp = tempfile.mkdtemp(prefix='LongWarInstaller_')
+        self.createTempDirectory()
         logging.debug('Created temp directory %s', self.tmp)
         os.chdir(self.tmp)
         command = [self.innoextract, '-e', '--progress=0', '--color=0', '-s', self.filename]
@@ -406,6 +438,10 @@ class Extractor(object):
                     if re.search(r'txt|jpg$', filename):
                         patchfile = PatchFile(filename, root, self.tmp)
                         self.patchFiles.append(patchfile)
+    @staticmethod
+    def modName(path):
+        return os.path.splitext(os.path.basename(path))[0].replace(' ', '_')
+
 
 class PatchFile(object):
     '''Represents a single file to be patched from the mod'''
@@ -863,6 +899,22 @@ class HostsFileScanner(object):
                 if any(pattern.match(line.rstrip()) for pattern in HostsFileScanner.PATTERNS):
                     return True
         return False
+
+class Distribution(TempDirectory):
+    TARGET_DIRECTORY = 'dist'
+    TEMP_PREFIX = 'LongWarDist_'
+
+    def __init__(self, files):
+        super(self, TempDirectory).__init__(self)
+        self.files = files
+        self.modname = Extractor.modName(files[0])
+        self.dmg = os.path.join(Distribution.TARGET_DIRECTORY, self.modname + '.dmg')
+
+    def create(self):
+        logging.info('Creating distribution based on %s...', self.files)
+        self.tmp = tempfile.mkdtemp(prefix='LongWarInstaller_')
+
+        return self.dmg
 
 # Errors
 class InstallError(Exception): pass

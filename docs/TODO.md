@@ -7,6 +7,15 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
 * Store total files in metadata and validate on uninstall
 * If backup version not found, list available ones
 
+## Distro
+
+* Package up .exe output as .zip, get extractor to read from it
+* Package up the zip files and the script into a .dmg file
+  * Incorporate the Linux fixes for beta 13
+  * Brief README.html to redirect to github docs
+* Store original distro sources in backups, so user doesn't need .dmg to roll back 
+  to a previous mod version (+12MB per backup)
+
 ## GUI
 
 * write one with wxPython, PySide, kivy, etc
