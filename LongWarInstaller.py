@@ -13,13 +13,14 @@ def main():
         Long War Installer version {}. For instructions, see the installer's home page
         at https://github.com/timgilbert/long-war-unix-installer/''').format(__version__))
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--install', help='Filename for the Long War executable file', metavar='MOD_FILENAME')
+    group.add_argument('--install', nargs='?', const=True, metavar='MOD_FILENAME',
+                       help='Filename for the Long War installation file')
     group.add_argument('--uninstall', nargs='?', const=True, metavar='MOD_VERSION',
                        help='Roll back to a backup and exit (defaults to currently active version)')
     group.add_argument('--list', action='store_true', help='List mod backups and exit')
     group.add_argument('--delete', help='Delete a backup and exit', metavar='MOD_VERSION')
     group.add_argument('--phone-home-enable', action='store_true', help='Enable phoning home by modifying /etc/hosts')
-    group.add_argument('--phone-home-disable', action='store_true', help='Disable phoning home by modifying /etc/hosts')
+    group.add_argument('--phone-home-disable', action='store_true', help='Block phoning home by modifying /etc/hosts')
     group.add_argument('--dist', nargs='+', help='Build distribution with files as input', metavar='file')
     group.add_argument('--hmm', action='store_true')
 
@@ -134,6 +135,19 @@ def main():
             again with the --phone-home-disable option to turn it off. Once that is done you can install 
             Long War and run the game as usual.'''
         abort(msg)
+    except NoInstallationFilesFound, e:
+        abort('''\
+            I couldn't find a .zip file to install Long War from in the directory this script is in. 
+            Please specify where to find the mod file:
+
+                ./LongWarInstaller.py --install ~/Long_War_3_Beta_13-88-3-0b13-OSX.zip
+            ''')
+    except TooManyInstallationFilesFound, e:
+        abort('''\
+            There is more than one zip file in the directory this script is in. Please specify which one to use:
+
+                ./LongWarInstaller.py --install ~/Long_War_3_Beta_13-88-3-0b13-OSX.zip
+            ''')
     except (OSError, IOError), e:
         # This is mildly sloppy
         abort("Can't access {}: {}".format(e.filename, e.strerror))
@@ -273,9 +287,19 @@ class GameDirectory(object):
         for key in sorted(self.backups.keys()):
             logging.info('%s', self.backups[key])
 
-    def install(self, filename, dryRun=False):
+    def install(self, filename=True, dryRun=False):
+        '''Install a mod from the given filename into the installation directory.'''
         self._validateHasPhonedHome()
         self._validateHasEnemyWith()
+
+        if filename is True:
+            zips = [f for f in os.listdir(os.path.dirname(__file__)) if f.endswith('.zip')]
+            if not zips:
+                raise NoInstallationFilesFound()
+            elif len(zips) > 1:
+                raise TooManyInstallationFilesFound()
+            filename = zips[0]
+    
         extractor = getExtractor(filename)
         version = extractor.version
 
@@ -1059,7 +1083,7 @@ class Distribution(object):
         result = runCommand(command)
         logging.debug('Created %s from %s, return value %s', dmg, distDir, result)
 
-# Errors
+# Errors. These might be a bit out of control, but they simplify the script error handling somewhat
 class InstallError(Exception): pass
 class InnoExtractorNotFound(InstallError): pass
 class LongWarFileNotFound(InstallError): pass
@@ -1072,5 +1096,7 @@ class GameHasNotPhonedHome(InstallError): pass
 class EnemyWithinNotFound(InstallError): pass
 class ActiveBackupFoundDuringInstall(InstallError): pass
 class NoActiveBackupFoundDuringUninstall(InstallError): pass
+class NoInstallationFilesFound(InstallError): pass
+class TooManyInstallationFilesFound(InstallError): pass
 
 if __name__ == '__main__': main()

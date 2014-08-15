@@ -2,8 +2,6 @@ These are various features I'd like to get done at some point.
 
 ## Short term features
 
-* Have script look for Long_War_*.zip as default argument to --install
-* Test installation from .dmg itself
 * Store total files in metadata and validate on uninstall
 * If backup version not found, list available ones
 * Log subprocess output to installation log
