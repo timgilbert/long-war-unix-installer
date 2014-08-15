@@ -964,6 +964,8 @@ class Distribution(object):
     README_FILENAME = 'README.html'
     README_JSON_RE = re.compile(r'/\*BEGIN_JSON_METADATA\*/' + '(.*)' + 
                                 r'/\*END_JSON_METADATA\*/', re.MULTILINE | re.DOTALL)
+    # Filenames that match any of these patterns will not be included in the final zip file
+    IGNORE_PATTERNS = { re.compile(p) for p in [r'/Long War Files/'] }
 
     def __init__(self, files):
         self.files = files
@@ -1001,7 +1003,8 @@ class Distribution(object):
                 'installerVersion': __version__},
             'sources': [os.path.basename(f) for f in self.files]
         }
-        metadataJson = json.dumps(readmeMetadata, indent=2, sort_keys=True)
+        metadataJson = ('/*BEGIN_DIST_METADATA*/\n' +  json.dumps(readmeMetadata, indent=2, sort_keys=True) +
+                        '\n/*END_DIST_METADATA*/\n')
 
         html = os.path.join(os.path.dirname(self.script), 'docs', self.README_FILENAME)
         with open(html) as infile:
@@ -1032,6 +1035,8 @@ class Distribution(object):
                 for root, dirs, files in os.walk(zipDir):
                     for basename in files:
                         fullPath = os.path.join(root, basename)
+                        if any(pattern.search(fullPath) for pattern in self.IGNORE_PATTERNS):
+                            logging.debug('Skipping ignored path %s', fullPath)
                         relativePath = getRelativePath(fullPath, zipDir)
                         if os.path.isfile(filename): # regular files only
                             logging.debug('Adding %s to zip as %s', fullPath, relativePath)
