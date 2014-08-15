@@ -183,6 +183,18 @@ def setupConsoleLogging(debug=False):
     rootlogger.addHandler(console)
     rootlogger.setLevel(logging.DEBUG)
 
+def setupFileLogging(logPath):
+    oldLogExists = os.path.isfile(logPath)
+    handler = logging.handlers.RotatingFileHandler(logPath, backupCount=9)
+    if oldLogExists:
+        handler.doRollover() # Hacky but seems to work, we get a new log file per execution
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)-7s %(message)s'))
+    rootLogger = logging.getLogger()
+    rootLogger.addHandler(handler)
+    logging.debug('Long War Installer, version {}'.format(__version__))
+
+
 class GameDirectory(object):
     '''Class representing an installed game directory.'''
     # Location relative the the game install directory of the application bundle directory
@@ -591,23 +603,13 @@ class Backup(object):
 
     def setupInstallLog(self):
         '''Begin logging messages to the install.log file for this backup'''
-        self._setupFileLog(self.installLog)
+        self._touch()
+        setupFileLogging(self.installLog)
 
     def setupUninstallLog(self):
         '''Begin logging messages to the install.log file for this backup'''
-        self._setupFileLog(self.uninstallLog)
-
-    def _setupFileLog(self, logPath):
         self._touch()
-        oldLogExists = os.path.isfile(logPath)
-        handler = logging.handlers.RotatingFileHandler(logPath, backupCount=9)
-        if oldLogExists:
-            handler.doRollover() # Hacky but seems to work, we get a new log file per execution
-        handler.setLevel(logging.DEBUG)
-        handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)-7s %(message)s'))
-        rootLogger = logging.getLogger()
-        rootLogger.addHandler(handler)
-        logging.debug('Long War Installer, version {}'.format(__version__))
+        setupFileLogging(self.uninstallLog)
 
     def backupModFile(self, patchFile):
         self._touch()
@@ -971,6 +973,7 @@ class Distribution(object):
         self.dmg = os.path.join(Distribution.TARGET_DIRECTORY, self.version + '-OSX.dmg')
         # For now we're assuming that we run --dist from the installer script itself
         self.script = os.path.realpath(__file__)
+        setupFileLogging(os.path.join(self.TARGET_DIRECTORY, 'dist.log'))
 
     def __repr__(self):
         return '<Distribution {v}, {n} files>'.format(v=self.version, n=len(self.files))
@@ -1002,7 +1005,7 @@ class Distribution(object):
         '''Extract each file from self.filenames in turn, with newer files overwriting older ones, into a
         temp directory. Create a zip file in distDir with a name based on self.version, and return its path.'''
         zipName = os.path.join(distDir, self.version + '-OSX.zip')
-        with TempDirectory('LongWar_DistZip_') as zipDir: 
+        with TempDirectory('LongWar_Zip_') as zipDir: 
             # Extract every file to a directory
             for filename in self.files:
                 logging.debug('Extracting %s', filename)
@@ -1010,15 +1013,19 @@ class Distribution(object):
                     logging.debug('Huzzah')
             # Now create a zip file
             with zipfile.ZipFile(zipName, 'w', zipfile.ZIP_DEFLATED) as distZip:
+                relRoot = os.path.abspath(os.path.join(zipDir, os.pardir))
                 for root, dirs, files in os.walk(zipDir):
                     for basename in files:
-                        filename = os.path.join(root, basename)
+                        fullPath = os.path.join(root, basename)
+                        relativePath = getRelativePath(fullPath, zipDir)
                         if os.path.isfile(filename): # regular files only
                             # FIXME: relapth still broken
-                            # archivePath = os.path.join(os.path.relpath(root, relRoot), self.version + '-OSX', basename)
-                            archivePath = os.path.join(self.version + '-OSX', os.path.relpath(root, distDir), basename)
-                            logging.debug('Adding %s to archive as %s', filename, archivePath)
-                            distZip.write(filename, archivePath)
+                            # archivePath = os.path.join(os.path.relpath(zipDir, relRoot), basename)
+                            # archivePath = os.path.join(self.version + '-OSX', os.path.relpath(root, distDir), basename)
+                            logging.debug('Path: %s', fullPath)
+                            logging.debug('Rel:  %s', relativePath)
+                            # logging.debug('Arch: %s', archivePath)
+                            distZip.write(fullPath, relativePath)
         return zipName
 
     def createDmg(self, dmg, distDir):

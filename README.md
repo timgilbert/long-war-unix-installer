@@ -16,14 +16,15 @@ before you try it. If something goes wrong, enable phoning home, pull up the gam
 and choose "Verify Integrity of Game Cache." (This will probably re-download the entire game.)
 
 * Launch the game once and quit
-* Download the [OS/X Long War installer `.dmg` file](http://www.nexusmods.com/xcom/mods/88/) and double-click it
+* Download the [OS/X Long War installer `.dmg` file](http://www.nexusmods.com/xcom/mods/88/) and mount it
+* In a terminal, change to the mounted disk image
+```
+cd /Volumes/Long-War-Mac-Installer
+```
 * Install the mod:
-
 ```
-% cd /Volumes/Long-War-Mac-Installer
-% ./LongWarInstaller.py --install
+./LongWarInstaller.py --install
 ```
-
 * Disable phoning home by modifying `/etc/hosts`:
 
 ```
