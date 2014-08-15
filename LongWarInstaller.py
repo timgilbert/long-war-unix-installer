@@ -276,8 +276,8 @@ class GameDirectory(object):
     def install(self, filename, dryRun=False):
         self._validateHasPhonedHome()
         self._validateHasEnemyWith()
-        extractor = Extractor(filename)
-        version = extractor.modname
+        extractor = getExtractor(filename)
+        version = extractor.version
 
         if self.activeBackup is not None:
             raise ActiveBackupFoundDuringInstall
@@ -396,9 +396,8 @@ class AbstractExtractor(object):
         '''Create a new instance. If directory is None, create a temp directory which will be 
         deleted on __exit__. Otherwise, extract into directory and do not clean it up afterwards.'''
         self.filename = filename
-        # modname is just the file's basename with underscores instead of spaces
-        # XXX FIXME - modname member, modName() method, yikes!
-        self.modname = self.modName(filename)
+        # version is just the file's basename with underscores instead of spaces
+        self.version = self.modName(filename)
         self.directory = directory
         self.tmp = None
 
@@ -408,10 +407,11 @@ class AbstractExtractor(object):
         if target is None:
             target = tempfile.mkdtemp(prefix=self.TEMP_PREFIX)
             self.tmp = target
-        logging.info('Extracting mod "%s" to temp directory...', self.modname)
+        logging.info('Extracting mod "%s" to temp directory...', self.version)
         logging.debug('Temp directory: %s', target)
         self.extract(target)
         self._scan(target)
+        return self
 
     def __exit__(self, type, value, traceback):
         '''Remove the temp directory, if it has been created.'''
@@ -446,20 +446,19 @@ class AbstractExtractor(object):
                     if re.search(r'txt|jpg$', filename):
                         patchfile = PatchFile(filename, root, extractRoot)
                         self.patchFiles.append(patchfile)
-        logging.debug('Extracted %d mod files from %s', len(self.patchFiles), self.modname)
+        logging.debug('Extracted %d mod files from %s', len(self.patchFiles), self.version)
 
     # TODO this should be a function
     @staticmethod
     def modName(path):
         return os.path.splitext(os.path.basename(path))[0].replace(' ', '_')
 
-    @staticmethod
-    def getExtractor(installationFilePath, targetDirectory=None):
-        '''Factory method - return the correct instance based on the file's extension.'''
-        classmap = {'.exe': InnoExtractor, '.zip': ZipExtractor}
-        _, extension = os.path.splitext(installationFilePath)
-        klass = classmap[extension]
-        return klass(installationFilePath, targetDirectory)
+def getExtractor(installationFilePath, targetDirectory=None):
+    '''Factory method - return the correct instance based on the file's extension.'''
+    classmap = {'.exe': InnoExtractor, '.zip': ZipExtractor}
+    _, extension = os.path.splitext(installationFilePath)
+    klass = classmap[extension]
+    return klass(installationFilePath, targetDirectory)
 
 # TODO move this somewhere logical
 def runCommand(command):
@@ -484,7 +483,7 @@ class InnoExtractor(AbstractExtractor):
 
     def extract(self, extractRoot):
         '''Extract the mod files to a temp directory, then scan them'''
-        self.validate()
+        self._validate()
 
         command = [self.innoextract, '--extract', '--progress=0', '--color=0', #'--silent', 
                    '--output-dir', extractRoot, self.filename]
@@ -493,7 +492,7 @@ class InnoExtractor(AbstractExtractor):
         if result != 0:
             raise InnoExtractionFailed('Running "{}" returned {}!'.format(' '.join(command), result))
 
-    def validate(self):
+    def _validate(self):
         '''Make sure the relevant stuff is present, else throw an error'''
         if self.innoextract is None:
             raise InnoExtractorNotFound()
@@ -775,6 +774,7 @@ class Patcher(object):
         self.gameDirectory.nukeFeralDirectory()
 
         with extractor as extracted:
+            logging.debug('Huh? %s', extracted)
             for modFile in extracted.patchFiles:
                 self.backup.backupModFile(modFile)
                 self.copyModFile(modFile)
@@ -962,15 +962,17 @@ class Distribution(object):
     TARGET_DIRECTORY = 'dist'
     TEMP_PREFIX = 'LongWar_Dist_'
     README_FILENAME = 'README.html'
-    README_JSON_RE = re.compile(r'/\*BEGIN_JSON_METADATA\*/' + '(.*)' + 
-                                r'/\*END_JSON_METADATA\*/', re.MULTILINE | re.DOTALL)
+    README_JSON_RE = re.compile(r'/\*BEGIN_DUMMY_METADATA\*/' + '(.*)' + 
+                                r'/\*END_DUMMY_METADATA\*/', re.MULTILINE | re.DOTALL)
     # Filenames that match any of these patterns will not be included in the final zip file
-    IGNORE_PATTERNS = { re.compile(p) for p in [r'/Long War Files/'] }
+    IGNORE_PATTERNS = [r'/Long War Files/', r'__MACOSX/', r'/\._', r'\.DS_Store']
 
     def __init__(self, files):
         self.files = files
         self.version = AbstractExtractor.modName(files[0])
-        self.dmg = os.path.join(Distribution.TARGET_DIRECTORY, self.version + '-OSX.dmg')
+        self.appendix = datetime.date.today().strftime('%Y-%m-%d')
+        self.dmgName = '{v}.{d}.OSX.dmg'.format(v=self.version, d=datetime.date.today().strftime('%Y-%m-%d'))
+        self.dmg = os.path.join(Distribution.TARGET_DIRECTORY, self.dmgName)
         # For now we're assuming that we run --dist from the installer script itself
         self.script = os.path.realpath(__file__)
         setupFileLogging(os.path.join(self.TARGET_DIRECTORY, 'dist.log'))
@@ -1000,11 +1002,13 @@ class Distribution(object):
         readmeMetadata = {
             'replacements': { 
                 'version': self.version, 
-                'installerVersion': __version__},
+                'installerVersion': __version__,
+                'dmgName': self.dmgName
+            },
             'sources': [os.path.basename(f) for f in self.files]
         }
         metadataJson = ('/*BEGIN_DIST_METADATA*/\n' +  json.dumps(readmeMetadata, indent=2, sort_keys=True) +
-                        '\n/*END_DIST_METADATA*/\n')
+                        '\n/*END_DIST_METADATA*/')
 
         html = os.path.join(os.path.dirname(self.script), 'docs', self.README_FILENAME)
         with open(html) as infile:
@@ -1027,7 +1031,7 @@ class Distribution(object):
             # Extract every file to a directory
             for filename in self.files:
                 logging.debug('Extracting %s', filename)
-                with AbstractExtractor.getExtractor(filename, zipDir) as extracted:
+                with getExtractor(filename, zipDir) as extracted:
                     logging.debug('Huzzah')
             # Now create a zip file
             with zipfile.ZipFile(zipName, 'w', zipfile.ZIP_DEFLATED) as distZip:
@@ -1035,8 +1039,9 @@ class Distribution(object):
                 for root, dirs, files in os.walk(zipDir):
                     for basename in files:
                         fullPath = os.path.join(root, basename)
-                        if any(pattern.search(fullPath) for pattern in self.IGNORE_PATTERNS):
+                        if any(re.search(p, fullPath) for p in self.IGNORE_PATTERNS):
                             logging.debug('Skipping ignored path %s', fullPath)
+                            continue
                         relativePath = getRelativePath(fullPath, zipDir)
                         if os.path.isfile(filename): # regular files only
                             logging.debug('Adding %s to zip as %s', fullPath, relativePath)

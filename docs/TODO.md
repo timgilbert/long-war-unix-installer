@@ -1,28 +1,22 @@
-# TODO
-
-These are mostly blue-sky type things, but I hope to at least get the GUI done.
+These are mostly various features I'd like to get done at some point.
 
 ## Short term features
 
+* Re-test installation after dist-related monkeying around
+* Test installation from .dmg itself
 * Store total files in metadata and validate on uninstall
 * If backup version not found, list available ones
 * Log subprocess output to installation log
 
 ## Distro (in `dist` branch)
 
-* Set up dist log
-* Package up .exe output as .zip, get extractor to read from it
-* Handle multiple files (for bugfixes)
-* Package up the zip file, README.html, and the script into a .dmg file
-  * Incorporate the Linux fixes for beta 13
 * Store original distro sources in backups, so user doesn't need .dmg to roll back 
   to a previous mod version (+12MB per backup)
-* Brief docs
 * Make the .dmg look nice, for instance via http://stackoverflow.com/a/1513578/87990
 * Update docs to reflect running from .dmg
 * Have script look for Long_War_*.zip as default argument to --install
-* Zip file has "app" at root, would be better to have modname/app
-* Refuse to --dist if a .dmg already exists? Or silently delete it
+* README.html should link to the tagged version of the install instructions
+  corresponding to the installer version that created it
 
 ## Refactoring
 

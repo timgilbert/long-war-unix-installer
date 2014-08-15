@@ -42,7 +42,6 @@ For more information, see
 For usage information, run `LongWarInstaller.py --help`. See also the 
 [installation instructions](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/Installation.md).
 
-
 ## Known Bugs (in the installer)
 
 * Root level files are installed in `XCOMData/XEW` instead of at the root
@@ -78,3 +77,14 @@ wghost81 who has forged ahead with the Linux version, and of course to the autho
 without whom none of this would be possible.
 
 For future plans, see [TODO.md](https://github.com/timgilbert/long-war-unix-installer/blob/master/docs/TODO.md)
+
+### Creating distributions
+
+This script can create installer distributions suitable for emailing to the Long War mods for upload to 
+the official site. To create one, use the `--dist` option and one or more files to use as a base - these 
+can be `.zip` files, or `.exe` files if you have innoextract installed (`brew install innoextract`).
+
+Each of the files will be extracted in turn to one directory, so the order is important (later files 
+overwrite earlier ones). After that, the script itself plus `docs/README.html` are copied into the 
+directory and a disk image is created. Some metadata gets written into the README file on the disk 
+image, see the source for details.
