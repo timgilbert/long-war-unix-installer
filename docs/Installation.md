@@ -13,16 +13,13 @@
     [Long War home page]((http://www.nexusmods.com/xcom/mods/88/).
   * Double-click the `.dmg` file to mount it. A disk image will pop up with three files on it.
 
-5. Open a terminal and cd into the disk image, you'll need to run commands from here.
-
+4. Open a terminal and cd into the disk image, you'll need to run commands from here.
 ```sh
 % cd /Volumes/Long-War-Mac-Installer/
-%
 ```
 
-6. Install the mod
+5. Install the mod
   * Run `LongWarInstaller.py` with the `--install` option.
-
 ```sh
 % ./LongWarInstaller.py --install 
 Extracting mod "Long_War_3_Beta_13-88-3-0b13-OSX" to temp directory...
@@ -30,17 +27,16 @@ Applied mod version "Long_War_3_Beta_13-88-3-0b13-OSX" to game directory.
 Install log available in "/Users/whatever/Library/Application Support/Steam/SteamApps/common/XCom-Enemy-Unknown/Long-War-Backups/Long_War_3_Beta_13-88-3-0b13-OSX/install.log"
 ```
 
-7. Block [phoning home](#phoning-home).
+6. Block [phoning home](#phoning-home).
   * After the game has phoned home one time, you'll want to disable phoning home, otherwise various parts 
     of the mod will be overwritten the next time you launch it and you'll probably crash to desktop.
   * You should also turn off automatic updates and cloud sync from Steam.
-
 ```sh
 % sudo ./LongWarInstaller.py --phone-home-disable
 Added 3 lines to /etc/hosts to disable phone home
 ```
 
-8. Launch the game.
+7. Launch the game.
 
 ## Phoning Home
 
