@@ -12,7 +12,6 @@
 
     <!-- Bootstrap -->
     <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-jumbotron-narrow.min.css">
     <style type="text/css">
       @media (min-width: 768px) {
         .container {
@@ -31,15 +30,13 @@
     <div class="container">
 
       <div class="header">
-        <ul class="nav nav-pills pull-right">
-        </ul>
         <h3 class="text-muted">Long War Installer for Mac</h3>
       </div>
 
       <div class="jumbotron">
         <h1>Read Me</h1>
-
-        <p>This distribution contains Long War version __version__ for Mac, along with a script to install it.</p>
+        <p>This distribution contains Long War version <span id="version">__version__</span>
+        for OS/X, along with a script to install it.</p>
 
         <p>There is no GUI yet, sorry, and the install process is slightly involved. Please see 
         <a href="https://github.com/timgilbert/long-war-unix-installer">the installer docs at github</a>
@@ -52,5 +49,23 @@
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script type="text/javascript">
+      (function($) {
+        metadata = 
+        // The following block should be updated by the --dist process
+        /*BEGIN_JSON_METADATA*/
+          {
+            "repacements": {
+              "version": "???"
+            }
+          }
+        /*END_JSON_METADATA*/
+        $(function() {
+          for (key in metadata.repacements) if (metadata.repacements.hasOwnProperty(key)) {
+            $('#' + key).text(metadata.repacements[key]);
+          }
+        });
+      })(jQuery);
+    </script>
   </body>
 </html>
