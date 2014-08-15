@@ -10,7 +10,7 @@
 
 3. Get the Long War files installer and mount it.
   * Download the OS/X version of the installer (a `.dmg` file) from the 
-    [Long War home page]((http://www.nexusmods.com/xcom/mods/88/).
+    [Long War home page](http://www.nexusmods.com/xcom/mods/88/).
   * Double-click the `.dmg` file to mount it. A disk image will pop up with three files on it.
 
 4. Open a terminal and cd into the disk image, you'll need to run commands from here.
