@@ -493,7 +493,7 @@ class InnoExtractor(AbstractExtractor):
         if result != 0:
             raise InnoExtractionFailed('Running "{}" returned {}!'.format(' '.join(command), result))
 
-    def validate(self, filename, directory=None):
+    def validate(self):
         '''Make sure the relevant stuff is present, else throw an error'''
         if self.innoextract is None:
             raise InnoExtractorNotFound()
