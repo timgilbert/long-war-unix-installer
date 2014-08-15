@@ -20,7 +20,7 @@
 
 5. Install the mod
   * Run `LongWarInstaller.py` with the `--install` option.
-  ```sh
+  ```
   % ./LongWarInstaller.py --install 
   Extracting mod "Long_War_3_Beta_13-88-3-0b13-OSX" to temp directory...
   Applied mod version "Long_War_3_Beta_13-88-3-0b13-OSX" to game directory.
@@ -31,7 +31,7 @@
   * After the game has phoned home one time, you'll want to disable phoning home, otherwise various parts 
     of the mod will be overwritten the next time you launch it and you'll probably crash to desktop.
   * You should also turn off automatic updates and cloud sync from Steam.
-  ```sh
+  ```
   % sudo ./LongWarInstaller.py --phone-home-disable
   Added 3 lines to /etc/hosts to disable phone home
   ```
@@ -52,8 +52,8 @@ Phoning home can be disabled by adding the following two entries to the `/etc/ho
     127.0.0.1 prod.xcom-ew.firaxis.com
     127.0.0.1 prod.xcom.firaxis.com
 
-The script is able to add and remove these entries itself, though it needs to be run as root in order to 
-do so. You can block and enable phoning home passing flags to the script.
+The installer is able to add and remove these entries itself, though it needs to be run as root in order to 
+do so. You can block or enable phoning home by passing flags to the script as follows.
 
 To disable phoning home by adding the above entries to `/etc/hosts`:
 
@@ -71,14 +71,6 @@ with the Mac App Store version. It will not currently work with *XCom: Enemy Unk
 I have also only ever tested this on OS/X 10.9.4 (Mavericks). The actual code is straightforward, portable 
 Python and I've been running it with OS/X's built-in python interpreter, which is 2.7.5. It should work with 
 homebrew python just as easily. It does need at least Python 2.7.
-
-This project depends on the user having  installed. 
-OS/X [homebrew](http://brew.sh/) users can install it via:
-
-    brew install innoextract
-
-If you don't have homebrew, you'll want to download `innoextract` from the above site and install it
-manually.
 
 ## Backups
 
