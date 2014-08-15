@@ -408,7 +408,8 @@ class AbstractExtractor(object):
         if target is None:
             target = tempfile.mkdtemp(prefix=self.TEMP_PREFIX)
             self.tmp = target
-        logging.info('Extracting mod "%s" to %s...', self.modname, target)
+        logging.info('Extracting mod "%s" to temp directory...', self.modname)
+        logging.debug('Temp directory: %s', target)
         self.extract(target)
         self._scan(target)
 
@@ -488,20 +489,11 @@ class InnoExtractor(AbstractExtractor):
         command = [self.innoextract, '--extract', '--progress=0', '--color=0', #'--silent', 
                    '--output-dir', extractRoot, self.filename]
 
-        # # A fancier script would log innoextract output to the log files if we're at debug
-        # if not isDebug():
-        #     DEVNULL = open(os.devnull, 'w') # squash output
-        #     stdout, stderr = DEVNULL, DEVNULL
-        # else:
-        #     stdout, stderr = None, None
-
-        # logging.debug('Running command: %s', ' '.join(command))
-        # result = subprocess.call(command, stdout=stdout, stderr=stderr)
         result = runCommand(command)
         if result != 0:
             raise InnoExtractionFailed('Running "{}" returned {}!'.format(' '.join(command), result))
 
-    def validate(self):
+    def validate(self, filename, directory=None):
         '''Make sure the relevant stuff is present, else throw an error'''
         if self.innoextract is None:
             raise InnoExtractorNotFound()
@@ -512,12 +504,15 @@ class InnoExtractor(AbstractExtractor):
 class ZipExtractor(AbstractExtractor):
     TEMP_PREFIX = 'LongWar_ExtZip_'
     def __init__(self, filename, directory=None):
-        super(ZipExtractor, self).__init__(filename)
+        super(ZipExtractor, self).__init__(filename, directory)
 
-    def extract(self):
+    def extract(self, extractRoot):
         '''Extract the mod files to a temp directory, then scan them'''
-        super(ZipExtractor, self).__enter__()
-        logging.debug('Zip extractor ready to go!')
+        logging.debug('Unzipping zip file %s', self.filename)
+        with zipfile.ZipFile(self.filename, 'r') as newZip:
+            for member in newZip.namelist():
+                logging.debug('Extracting %s', member)
+                newZip.extract(member, extractRoot)
 
 class PatchFile(object):
     '''Represents a single file to be patched from the mod'''
@@ -1019,12 +1014,7 @@ class Distribution(object):
                         fullPath = os.path.join(root, basename)
                         relativePath = getRelativePath(fullPath, zipDir)
                         if os.path.isfile(filename): # regular files only
-                            # FIXME: relapth still broken
-                            # archivePath = os.path.join(os.path.relpath(zipDir, relRoot), basename)
-                            # archivePath = os.path.join(self.version + '-OSX', os.path.relpath(root, distDir), basename)
-                            logging.debug('Path: %s', fullPath)
-                            logging.debug('Rel:  %s', relativePath)
-                            # logging.debug('Arch: %s', archivePath)
+                            logging.debug('Adding %s to zip as %s', fullPath, relativePath)
                             distZip.write(fullPath, relativePath)
         return zipName
 
@@ -1032,7 +1022,7 @@ class Distribution(object):
         '''Create a .dmg image in the given file containing the directory given.'''
         volname = 'Long-War-Mac-Installer'
         logging.info('Creating disk image "%s"...', dmg)
-        command = ['hdiutil', 'create', dmg, '-volname', volname, '-fs', 'HFS+', '-srcfolder', distDir]
+        command = ['hdiutil', 'create', dmg, '-volname', volname, '-fs', 'HFS+', '-srcfolder', distDir, '-verbose']
         result = runCommand(command)
         logging.debug('Created %s from %s, return value %s', dmg, distDir, result)
 

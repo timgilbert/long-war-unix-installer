@@ -6,7 +6,7 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
 
 * Store total files in metadata and validate on uninstall
 * If backup version not found, list available ones
-* Log innoextract output to installation log
+* Log subprocess output to installation log
 
 ## Distro (in `dist` branch)
 
@@ -24,6 +24,7 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
 * Update docs to reflect running from .dmg
 * Have script look for Long_War_*.zip as default argument to --install
 * Zip file has "app" at root, would be better to have modname/app
+* Refuse to --dist if a .dmg already exists? Or silently delete it
 
 ## Refactoring
 
