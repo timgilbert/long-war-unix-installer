@@ -15,8 +15,6 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
 * Handle multiple files (for bugfixes)
 * Package up the zip file, README.html, and the script into a .dmg file
   * Incorporate the Linux fixes for beta 13
-  * Rudimentary substitution in README - add package version, source files
-    *Maybe just add some JSON, have the file dynamically replace it
 * Store original distro sources in backups, so user doesn't need .dmg to roll back 
   to a previous mod version (+12MB per backup)
 * Brief docs
@@ -47,7 +45,8 @@ These are mostly blue-sky type things, but I hope to at least get the GUI done.
 
 * fork / exec as `sudo $@` to gain root privs for enable / disable hosts
 * Checksums of backed up files, probably [following this algorithm](http://stackoverflow.com/a/3431835/87990)?
-  * Checksum entire insalled game tree, and verify it after backups?
+  * Checksum entire installed game tree, and verify it after backups?
+  * Not sure this is really worthwhile from a safety standpoint
 * Linux support
   * Some refactoring into platform-specific subclasses or whatnot
 * Install for Enemy Unknown

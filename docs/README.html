@@ -53,16 +53,17 @@
       (function($) {
         metadata = 
         // The following block should be updated by the --dist process
-        /*BEGIN_JSON_METADATA*/
+/*BEGIN_JSON_METADATA*/
           {
-            "repacements": {
+            "replacements": {
               "version": "???"
             }
           }
-        /*END_JSON_METADATA*/
+/*END_JSON_METADATA*/
+        ;
         $(function() {
-          for (key in metadata.repacements) if (metadata.repacements.hasOwnProperty(key)) {
-            $('#' + key).text(metadata.repacements[key]);
+          for (key in metadata.replacements) if (metadata.replacements.hasOwnProperty(key)) {
+            $('#' + key).text(metadata.replacements[key]);
           }
         });
       })(jQuery);

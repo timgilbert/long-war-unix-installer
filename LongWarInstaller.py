@@ -6,7 +6,7 @@ import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, j
 import fileinput, errno, zipfile
 import logging.handlers, distutils.spawn
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'
 
 def main():
     parser = argparse.ArgumentParser(description=textwrap.dedent('''\
@@ -961,6 +961,9 @@ class HostsFileScanner(object):
 class Distribution(object):
     TARGET_DIRECTORY = 'dist'
     TEMP_PREFIX = 'LongWar_Dist_'
+    README_FILENAME = 'README.html'
+    README_JSON_RE = re.compile(r'/\*BEGIN_JSON_METADATA\*/' + '(.*)' + 
+                                r'/\*END_JSON_METADATA\*/', re.MULTILINE | re.DOTALL)
 
     def __init__(self, files):
         self.files = files
@@ -990,10 +993,27 @@ class Distribution(object):
         return self.dmg
 
     def copyReadmeHtml(self, distDir):
-        '''Copy the README.html file from the doc/ directory into the dist directory, replaceing its values.'''
+        '''Copy the README.html file from the doc/ directory into the dist directory, replacing its values.'''
         # This is the simple version
-        html = os.path.join(os.path.dirname(self.script), 'docs', 'README.html')
-        shutil.copy2(html, distDir)
+        readmeMetadata = {
+            'replacements': { 
+                'version': self.version, 
+                'installerVersion': __version__},
+            'sources': [os.path.basename(f) for f in self.files]
+        }
+        metadataJson = json.dumps(readmeMetadata, indent=2, sort_keys=True)
+
+        html = os.path.join(os.path.dirname(self.script), 'docs', self.README_FILENAME)
+        with open(html) as infile:
+            contents = infile.read()
+        
+        newContents = re.sub(self.README_JSON_RE, metadataJson, contents)
+        if newContents == contents:
+            logging.debug('No replacement done to README file, hmm')
+
+        with open(os.path.join(distDir, self.README_FILENAME), 'w') as outfile:
+            outfile.write(newContents)
+
         logging.debug('Copied README %s to %s', html, distDir)
 
     def createZip(self, distDir):
@@ -1020,6 +1040,9 @@ class Distribution(object):
 
     def createDmg(self, dmg, distDir):
         '''Create a .dmg image in the given file containing the directory given.'''
+        if os.path.isfile(dmg):
+            logging.info('Removing previous installation image %s', dmg)
+            removeOrWarn(dmg)
         volname = 'Long-War-Mac-Installer'
         logging.info('Creating disk image "%s"...', dmg)
         command = ['hdiutil', 'create', dmg, '-volname', volname, '-fs', 'HFS+', '-srcfolder', distDir, '-verbose']
