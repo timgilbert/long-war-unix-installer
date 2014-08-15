@@ -1,27 +1,46 @@
-# Detailed Long War installation steps (OS/X)
+# Long War installation instructions (OS/X)
 
-1. Get the relevant files
-  * Download the 
-    [LongWarInstaller.py](https://raw.githubusercontent.com/timgilbert/long-war-unix-installer/master/LongWarInstaller.py)
-    script somewhere (or `git clone` this project) and make it executable (`chmod +x LongWarInstaller.py`).
-  * Download the Windows *Long War* installer from the "Files" tab of [its homepage](http://www.nexusmods.com/xcom/mods/88/).
-    You want the Enemy Within (EW) version. As I write this, the most recent version is "Long War 3 Beta 13-88-3-0b13".
-  * Make sure you've got `innoextract` installed (see [Dependencies](#dependencies)).
+1. Install *XCom: Enemy Within* from Steam.
 
-2. Install *XCom: Enemy Within* from Steam.
-
-3. Launch the game at least once.
+2. Launch the game at least once.
   * When you run the game for the first time, it will download some updates from a server at Firaxis. This is 
-    known as "phoning home" and is completely unrelated to Steam's auto-update system.
+    known as "[phoning home](#phoning-home)" and is completely unrelated to Steam's auto-update system.
   * If the game doesn't phone home at least once before you install the mod, it will crash when you launch it.
   * It is sufficient to launch the game, get to the main menu, and then quit to get *XCom* to phone home.
 
-4. Block [phoning home](#Phoning-Home).
+3. Get the Long War files installer and mount it.
+  * Download the OS/X version of the installer (a `.dmg` file) from the 
+    [Long War home page]((http://www.nexusmods.com/xcom/mods/88/).
+  * Double-click the `.dmg` file to mount it. A disk image will pop up with three files on it.
+
+5. Open a terminal and cd into the disk image, you'll need to run commands from here.
+
+```sh
+% cd /Volumes/Long-War-Mac-Installer/
+%
+```
+
+6. Install the mod
+  * Run `LongWarInstaller.py` with the `--install` option.
+
+```sh
+% ./LongWarInstaller.py --install 
+Extracting mod "Long_War_3_Beta_13-88-3-0b13-OSX" to temp directory...
+Applied mod version "Long_War_3_Beta_13-88-3-0b13-OSX" to game directory.
+Install log available in "/Users/whatever/Library/Application Support/Steam/SteamApps/common/XCom-Enemy-Unknown/Long-War-Backups/Long_War_3_Beta_13-88-3-0b13-OSX/install.log"
+```
+
+7. Block [phoning home](#phoning-home).
   * After the game has phoned home one time, you'll want to disable phoning home, otherwise various parts 
     of the mod will be overwritten the next time you launch it and you'll probably crash to desktop.
   * You should also turn off automatic updates and cloud sync from Steam.
 
-5. Launch the game.
+```sh
+% sudo ./LongWarInstaller.py --phone-home-disable
+Added 3 lines to /etc/hosts to disable phone home
+```
+
+8. Launch the game.
 
 ## Phoning Home
 
@@ -48,15 +67,16 @@ To re-enable it by removing those entries:
 
     sudo ./LongWarInstaller.py --phone-home-enable 
 
-## Dependencies
+## Dependencies and Requirements
 
 I have only tested this script with the Steam version of *XCom: Enemy Within*. To my knowledge, it will not work 
 with the Mac App Store version. It will not currently work with *XCom: Enemy Unknown*, only with the expansion.
 
-I have also only ever tested this on OS/X 10.9.4 (Maverick). The actual code is straightforward, portable 
-Python and I've been running it with OS/X's built-in python interpreter, which is 2.7.5.
+I have also only ever tested this on OS/X 10.9.4 (Mavericks). The actual code is straightforward, portable 
+Python and I've been running it with OS/X's built-in python interpreter, which is 2.7.5. It should work with 
+homebrew python just as easily. It does need at least Python 2.7.
 
-This project depends on the user having [innoextract](http://constexpr.org/innoextract/) installed. 
+This project depends on the user having  installed. 
 OS/X [homebrew](http://brew.sh/) users can install it via:
 
     brew install innoextract
@@ -113,3 +133,13 @@ Note that the character's weapon is called "Assault Rifle."
 
 If you see four operatives in grey, or if their weapons say "EXALT assault rifle", something went 
 wrong with the installation.
+
+# Something went wrong!
+
+If you get an error in the installer (like a traceback or other unexpected result), please 
+[open an issue on github](https://github.com/timgilbert/long-war-unix-installer/issues).
+
+If there is a problem with the mod itself, your best bet is to ask for help on the 
+[official Long War forums](http://forums.nexusmods.com/index.php?/forum/665-xcom-file-discussions/).
+The people there are super helpful and many of the mod authors keep track of it. Make sure to 
+note that you are running on the Mac version, as it's comparatively new.

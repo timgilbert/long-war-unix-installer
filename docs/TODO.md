@@ -1,20 +1,21 @@
-These are mostly various features I'd like to get done at some point.
+These are various features I'd like to get done at some point.
 
 ## Short term features
 
-* Re-test installation after dist-related monkeying around
+* Have script look for Long_War_*.zip as default argument to --install
 * Test installation from .dmg itself
 * Store total files in metadata and validate on uninstall
 * If backup version not found, list available ones
 * Log subprocess output to installation log
+  * Something like this should work: http://stackoverflow.com/a/18345099/87990
+* `--delete` should refuse to delete active backups
 
 ## Distro (in `dist` branch)
 
 * Store original distro sources in backups, so user doesn't need .dmg to roll back 
   to a previous mod version (+12MB per backup)
+  * Might as well write the script in there too, it's only 52K
 * Make the .dmg look nice, for instance via http://stackoverflow.com/a/1513578/87990
-* Update docs to reflect running from .dmg
-* Have script look for Long_War_*.zip as default argument to --install
 * README.html should link to the tagged version of the install instructions
   corresponding to the installer version that created it
 
@@ -47,4 +48,4 @@ These are mostly various features I'd like to get done at some point.
   * Handle Mac App Store installs (only Enemy Unknown, I think?)
 * Add `--backup` flag to back up a directory without overwriting files
 * Back up saved games /settings / etc?
-* Zip backups? Seems to only go from 27MB to 15MB
+* Zip backups? Seems to only go from 27MB to 15MB, maybe not worth the hassle

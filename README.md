@@ -82,7 +82,8 @@ For future plans, see [TODO.md](https://github.com/timgilbert/long-war-unix-inst
 
 This script can create installer distributions suitable for emailing to the Long War mods for upload to 
 the official site. To create one, use the `--dist` option and one or more files to use as a base - these 
-can be `.zip` files, or `.exe` files if you have innoextract installed (`brew install innoextract`).
+can be `.zip` files, or `.exe` files if you have [innoextract](http://constexpr.org/innoextract/) 
+installed (`brew install innoextract`).
 
 Each of the files will be extracted in turn to one directory, so the order is important (later files 
 overwrite earlier ones). After that, the script itself plus `docs/README.html` are copied into the 
