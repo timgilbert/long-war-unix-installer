@@ -6,7 +6,7 @@ import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, j
 import fileinput, errno, zipfile
 import logging.handlers, distutils.spawn
 
-__version__ = '1.1.0'
+__version__ = '1.1.1'
 
 def main():
     parser = argparse.ArgumentParser(description=textwrap.dedent('''\
@@ -361,13 +361,13 @@ class GameDirectory(object):
 
     def phoneHomeDisable(self):
         if not self.hostsScanner.isEnabled:
-            logging.warn('Phone home is already disabled.')
+            logging.warn('Phoning home is already blocked.')
             return
         self.hostsScanner.disable()
 
     def phoneHomeEnable(self):
         if self.hostsScanner.isEnabled:
-            logging.warn('Phone home is already enabled.')
+            logging.warn('Phoning home is already enabled.')
             return
         self.hostsScanner.enable()
 
@@ -957,7 +957,7 @@ class HostsFileScanner(object):
                 raise PhoneHomePermissionDenied(e)
             else:
                 raise e
-        logging.info('Removed %d lines from %s to enable phone home', count, HostsFileScanner.HOSTS)
+        logging.info('Removed %d lines from %s to enable phoning home', count, HostsFileScanner.HOSTS)
 
     def disable(self):
         '''Turn off phoning home by adding xcom entries to the hosts file'''
