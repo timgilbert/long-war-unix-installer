@@ -8,7 +8,6 @@ These are various features I'd like to get done at some point.
   * Something like this should work: http://stackoverflow.com/a/18345099/87990
 * `--delete` should refuse to delete active backups
 * Change "phone home" nomenclature to `--block` and `--unblock` for clarity
-* Update README.html to display file sources, installer version
 
 ## Distro (in `dist` branch)
 

@@ -35,15 +35,31 @@
 
       <div class="jumbotron">
         <h1>Read Me</h1>
-        <p>This distribution contains Long War version 
+        <p class="lead">This distribution contains Long War version 
         <strong><span id="version">__version__</span></strong>
         for OS/X, along with a script to install it.</p>
-
-        <p>There is no GUI yet, sorry, and the install process is slightly involved. Please see 
+        <p class="lead">There is no GUI yet, sorry, and the install process is slightly 
+        involved. Please see 
         <a href="https://github.com/timgilbert/long-war-unix-installer">the installer docs at github</a>
         for installation instructions.</p>
       </div>
 
+      <p>This distribution was made with installer version
+      <span id="installerVersion">1.2.3</span>.</p>
+      <p>
+
+      <div id="sources" class="hidden">
+        <p>The following source files were used to build this distribution:
+          <ul id="source-list">
+          </ul>
+        </p>
+      </div>
+    </div>
+
+    <div class="hidden">
+        <ul>
+          <li id="template-source">Template source</li>
+        </ul>
     </div>
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
@@ -72,6 +88,12 @@
           for (key in metadata.replacements) if (metadata.replacements.hasOwnProperty(key)) {
             $('#' + key).text(metadata.replacements[key]);
           }
+          metadata.sources.forEach(function(source) {
+            var $tmpl = $('#template-source').clone();
+            $tmpl.text(source);
+            $('#source-list').append($tmpl);
+          });
+          $('#sources').removeClass('hidden');
         });
       })(jQuery);
     </script>
