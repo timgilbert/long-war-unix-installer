@@ -36,7 +36,7 @@
       <div class="jumbotron">
         <h1>Read Me</h1>
         <p class="lead">This distribution contains Long War version 
-        <strong><span id="version">__version__</span></strong>
+        <strong><span id="replace-version">__version__</span></strong>
         for OS/X, along with a script to install it.</p>
         <p class="lead">There is no GUI yet, sorry, and the install process is slightly 
         involved. Please see 
@@ -45,7 +45,9 @@
       </div>
 
       <p>This distribution was made with installer version
-      <span id="installerVersion">1.2.3</span>.</p>
+      <span id="replace-installerVersion">1.2.3</span>.
+      Here are the <a id="install-instructions" href="#">specific installation instructions</a>
+      for this release.</p>
       <p>
 
       <div id="sources" class="hidden">
@@ -85,9 +87,15 @@
 /*END_DUMMY_METADATA*/
         ;
         $(function() {
+          // Replacements
           for (key in metadata.replacements) if (metadata.replacements.hasOwnProperty(key)) {
-            $('#' + key).text(metadata.replacements[key]);
+            $('#replace-' + key).text(metadata.replacements[key]);
           }
+          // Install instructions
+          link = 'https://github.com/timgilbert/long-war-unix-installer/blob/' + 
+                 metadata.replacements.installerVersion + '/docs/Installation.md';
+          $('#install-instructions').attr('href', link);
+          // Source list
           metadata.sources.forEach(function(source) {
             var $tmpl = $('#template-source').clone();
             $tmpl.text(source);

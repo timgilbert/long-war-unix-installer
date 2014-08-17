@@ -2,8 +2,8 @@ These are various features I'd like to get done at some point.
 
 ## Short term features
 
-* Store total files in metadata and validate on uninstall
-* If backup version not found, list available ones
+* Store total files in backup metadata and validate on uninstall
+* If backup version not found in `--uninstall` / `--delete`, list available ones
 * Log subprocess output to installation log
   * Something like this should work: http://stackoverflow.com/a/18345099/87990
 * `--delete` should refuse to delete active backups
@@ -15,8 +15,7 @@ These are various features I'd like to get done at some point.
   to a previous mod version (+12MB per backup)
   * Might as well write the script in there too, it's only 52K
 * Make the .dmg look nice, for instance via http://stackoverflow.com/a/1513578/87990
-* README.html should link to the tagged version of the install instructions
-  corresponding to the installer version that created it
+* Option to make .zip distributions, since NexusMods won't let mods upload `.dmg` files
 
 ## Refactoring
 
