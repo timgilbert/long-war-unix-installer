@@ -55,11 +55,8 @@ these issues; I'm just focused on getting the installer script to work. Please s
 [the official Long War mod forum](http://forums.nexusmods.com/index.php?/forum/665-xcom-file-discussions/)
 for help with the mod itself.
 
-Currently the mod crashes to desktop on launch quite often. There should be a fix for this in the works.
+Currently the mod crashes to desktop on launch somewhat often. There should be a fix for this in the works.
 I've noticed that having lots of free RAM on launch helps a lot.
-
-There is also a bug where buying weapons will result in a CTD. A fix has been implemented for the Linux
-version of Long War, and it will eventually be released in beta 14.
 
 If you have a problem running the script, please 
 [file an issue here](https://github.com/timgilbert/long-war-unix-installer/issues).

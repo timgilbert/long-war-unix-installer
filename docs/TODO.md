@@ -4,8 +4,6 @@ These are various features I'd like to get done at some point.
 
 * Option to make .zip distributions, since NexusMods won't let mods upload `.dmg` files
 * Store total files in backup metadata and validate on uninstall
-* Log subprocess output to installation log
-  * Something like this should work: http://stackoverflow.com/a/18345099/87990
 
 ## Distro (in `dist` branch)
 

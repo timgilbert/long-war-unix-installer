@@ -7,6 +7,7 @@ import fileinput, errno, zipfile
 import logging.handlers, distutils.spawn
 
 __version__ = '1.1.1'
+ALIEN = u'\U0001f47d ' # This is goofy
 
 def main():
     parser = argparse.ArgumentParser(description=textwrap.dedent('''\
@@ -66,7 +67,7 @@ def main():
 
                         sudo ./LongWarInstaller.py --phone-home-block'''))
             else:
-                logging.info('\nPhone home is blocked. Enjoy the game!')
+                logging.info('\nPhoning home is blocked. Enjoy the game! %s', ALIEN * 3)
             return
 
         raise NotImplementedError('Whoops! Not sure what to do', args)
@@ -222,6 +223,24 @@ def setupFileLogging(logPath):
     rootLogger.addHandler(handler)
     logging.debug('Long War Installer, version {}'.format(__version__))
 
+# TODO move this somewhere logical
+def runCommand(command, debugOptions=[]):
+    '''Run the given command list via subprocess.call() and return the exit value. If we are 
+    logging at DEBUG, append the list in debugOptions to command before running it.'''
+    # A fancier script would log innoextract output to the log files if we're at debug
+    if isDebug():
+        command.append(debugOptions)
+    executable = os.path.basename(command[0])
+
+    logging.debug('Running command: %s', ' '.join(command))
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    for output in process.stdout:
+        logging.debug('(%s): %s', executable, output.strip())
+
+    # Potential of deadlocking on large amounts of command output, but should be fine in practice
+    process.wait()
+    logging.debug('Return value: %s', process.returncode)
+    return process.returncode
 
 class GameDirectory(object):
     '''Class representing an installed game directory.'''
@@ -489,21 +508,6 @@ def getExtractor(installationFilePath, targetDirectory=None):
     _, extension = os.path.splitext(installationFilePath)
     klass = classmap[extension]
     return klass(installationFilePath, targetDirectory)
-
-# TODO move this somewhere logical
-def runCommand(command):
-    '''Run the given command list via subprocess.call() and return the exit value'''
-    # A fancier script would log innoextract output to the log files if we're at debug
-    if isDebug():
-        stdout, stderr = None, None
-    else:
-        DEVNULL = open(os.devnull, 'w') # squash output
-        stdout, stderr = DEVNULL, DEVNULL
-
-    logging.debug('Running command: %s', ' '.join(command))
-    result = subprocess.call(command, stdout=stdout, stderr=stderr)
-    logging.debug('Return value: %s', result)
-    return result
 
 class InnoExtractor(AbstractExtractor):
     TEMP_PREFIX = 'LongWar_ExtInno_'
