@@ -19,8 +19,8 @@ def main():
                        help='Roll back to a backup and exit (defaults to currently active version)')
     group.add_argument('--list', action='store_true', help='List mod backups and exit')
     group.add_argument('--delete', help='Delete a backup and exit', metavar='MOD_VERSION')
-    group.add_argument('--phone-home-enable', action='store_true', help='Enable phoning home by modifying /etc/hosts')
-    group.add_argument('--phone-home-disable', action='store_true', help='Block phoning home by modifying /etc/hosts')
+    group.add_argument('--phone-home-unblock', action='store_true', help='Unblock phoning home by modifying /etc/hosts')
+    group.add_argument('--phone-home-block', action='store_true', help='Block phoning home by modifying /etc/hosts')
     group.add_argument('--dist', nargs='+', help='Build distribution with files as input', metavar='file')
     group.add_argument('--hmm', action='store_true')
 
@@ -50,21 +50,21 @@ def main():
         if args.uninstall is not None:
             game.uninstall(args.uninstall) ; return
 
-        if args.phone_home_enable:
-            game.phoneHomeEnable() ; return
+        if args.phone_home_block:
+            HostsFileScanner().block() ; return
 
-        if args.phone_home_disable:
-            game.phoneHomeDisable() ; return
+        if args.phone_home_unblock:
+            HostsFileScanner().unblock() ; return
 
         if args.install:
             game.install(args.install, args.dry_run) 
 
-            if game.hostsScanner.isEnabled:
+            if not game.phoneHomeBlocked:
                 logging.warn(textwrap.dedent('''
-                    Warning! The mod has been installed, but phoning home is not yet disabled.
+                    Warning! The mod has been installed, but phoning home is not yet blocked.
                     Before you run the game, block phoning home by running:
 
-                        sudo ./LongWarInstaller.py --phone-home-disable'''))
+                        sudo ./LongWarInstaller.py --phone-home-block'''))
             else:
                 logging.info('\nPhone home is blocked. Enjoy the game!')
             return
@@ -93,14 +93,13 @@ def main():
             I couldn't figure out where your steam installation is. Please use the --game option
             to specify where to find it your game installation directory.''')
     except BackupVersionNotFound, e:
-        abort('''\
-            Sorry, version {version} not found. Use --list to list the available versions.'''.format(version=e))
+        abort() # Error printed in GameDirectory.deleteBackupTree()
     except InnoExtractionFailed, e:
         abort(str(e))
     except PhoneHomePermissionDenied, e:
         abort('''\
-            Permission denied opening {}. You must run this program as root to enable or disable ''' +
-            '''phoning home.'''.format(HostsFileScanner.HOSTS))
+            Permission denied opening {}. You must run this program as root to block or unblock phoning home.'''\
+            .format(HostsFileScanner.HOSTS))
     except EnemyWithinNotFound, e:
         abort('''\
             I couldn't find an Enemy Within directory! This installer only works for the games with Enemy 
@@ -109,6 +108,14 @@ def main():
         abort('''\
             You're trying to install long war, but it has already been installed. Please uninstall 
             the previous installation by running this script again with the --uninstall option:
+
+                ./LongWarInstaller.py --uninstall
+            ''')
+    except ActiveBackupFoundDuringDelete, e:
+        abort('''\
+            The backup you're attempting to delete is currently installed in your game directory. If 
+            you delete it, you'll lose the files from the vanilla version. Please roll back to the 
+            vanilla version of XCom before you delete this backup. You can do so with this command:
 
                 ./LongWarInstaller.py --uninstall
             ''')
@@ -126,14 +133,14 @@ def main():
     except GameHasNotPhonedHome, e:
         msg ='''\
             I couldn't find the Feral Interactive directory in App Support. Before you install Long War, 
-            you need to make sure phoning home is not disabled, launch the game, and exit to the desktop 
+            you need to make sure phoning home is unblocked, launch the game, and exit to the desktop 
             from the main menu.'''
-        if not e.args[0]:           # If args[0] is true, phoning home is enabled
+        if not e.args[0]:           # If args[0] is true, phoning home is unblocked
             msg += '\n\n' + '''
-            Note that phoning home is currently *disabled*. Enable it by running as root with the 
-            --phone-home-enable option, launch the game, exit, and then running the installer as root
-            again with the --phone-home-disable option to turn it off. Once that is done you can install 
-            Long War and run the game as usual.'''
+            Note that phoning home is currently *blocked*. Block it by running as root with the 
+            --phone-home-unblock option, launch the game, exit, and then run the installer as root
+            again with the --phone-home-block option to disable phoning home. Once that is done you 
+            can install Long War and run the game as usual.'''
         abort(msg)
     except NoInstallationFilesFound, e:
         abort('''\
@@ -148,6 +155,12 @@ def main():
 
                 ./LongWarInstaller.py --install ~/Long_War_3_Beta_13-88-3-0b13-OSX.zip
             ''')
+    except AlreadyBlocked, e:
+        abort('''\
+            You're trying to block phoning home, but it has already been blocked. You're all set!''')
+    except AlreadyUnblocked, e:
+        abort('''\
+            You're trying to unblock phoning home, but it is already unblocked. You're all set!''')
     except (OSError, IOError), e:
         # This is mildly sloppy
         abort("Can't access {}: {}".format(e.filename, e.strerror))
@@ -159,8 +172,9 @@ def make_distribution(files):
     dmg = dist.create()
     logging.info('Created distribution %s as %s', dist, dmg)
 
-def abort(errmsg):
-    logging.error(textwrap.dedent(errmsg))
+def abort(errmsg=None):
+    if errmsg is not None:
+        logging.error(textwrap.dedent(errmsg))
     sys.exit(1)
 
 def isDebug():
@@ -241,8 +255,8 @@ class GameDirectory(object):
         logging.debug('Game root directory located at %s', self.root)
         self._scanForBackups()
 
-        self.hostsScanner = HostsFileScanner()
-        logging.debug('Phone home: %s', 'enabled' if self.hostsScanner.isEnabled else 'disabled')
+        self.phoneHomeBlocked = HostsFileScanner().blocked
+        logging.debug('Phone home: %s', 'blocked' if self.phoneHomeBlocked else 'unblocked')
 
         self.feralRoot = os.path.expanduser(GameDirectory.FERAL_MACINIT)
 
@@ -262,21 +276,20 @@ class GameDirectory(object):
                 self.backups[dirname] = backup
 
     def _validateHasPhonedHome(self):
-        '''Make sure the user has run the game with phone home enabled at least once, else 
+        '''Make sure the user has run the game with phone home unblocked at least once, else 
         throw an exception.'''
         if not self.hasPhonedHome:
-            raise GameHasNotPhonedHome(self.hostsScanner.isEnabled)
+            raise GameHasNotPhonedHome(self.phoneHomeBlocked)
 
     def _validateHasEnemyWith(self):
-        '''Make sure the user has run the game with phone home enabled at least once, else 
-        throw an exception.'''
+        '''Make sure the user has Enemy Within installed (not just Enemy Unknown).'''
         if not os.path.isdir(os.path.join(self.root, GameDirectory.MOD_FILE_ROOT)):
             raise EnemyWithinNotFound
 
     def list(self):
         logging.debug('Listing backups...')
         logging.info('Phoning home is currently %s.', 
-                  'enabled' if self.hostsScanner.isEnabled else 'blocked')
+                  'blocked' if self.phoneHomeBlocked else 'unblocked')
         if self.hasPhonedHome:
             logging.info('The game has phoned home at least once.')
         else:
@@ -284,6 +297,9 @@ class GameDirectory(object):
         if not self.backups:
             logging.info('No backups found in %s.', self.root)
             return
+        self._listAllBackups()
+
+    def _listAllBackups(self):
         for key in sorted(self.backups.keys()):
             logging.info('%s', self.backups[key])
 
@@ -293,7 +309,7 @@ class GameDirectory(object):
         self._validateHasEnemyWith()
 
         if filename is True:
-            zips = [f for f in os.listdir(os.path.dirname(__file__)) if f.endswith('.zip')]
+            zips = [f for f in os.listdir(os.path.dirname(__file__)) if f.endswith('.zip') and os.path.isfile(f)]
             if not zips:
                 raise NoInstallationFilesFound()
             elif len(zips) > 1:
@@ -326,8 +342,13 @@ class GameDirectory(object):
 
     def deleteBackupTree(self, version):
         if version not in self.backups:
+            logging.error("Can't find backup version \"{}\". The following backups are available:".format(version))
+            self._listAllBackups()
             raise BackupVersionNotFound(version)
-        self.backups[version].deleteBackupTree()
+        doomedBackup = self.backups[version]
+        if doomedBackup.active:
+            raise ActiveBackupFoundDuringDelete(version)
+        doomedBackup.deleteBackupTree()
         logging.info('Deleted backup "%s"', version)
 
     def uninstall(self, version=True):
@@ -344,9 +365,6 @@ class GameDirectory(object):
         logging.info('Reverted to backups for Long War "%s"', doomedBackup.version)
         logging.info('Uninstall log available in "%s"', doomedBackup.uninstallLog)
 
-    def undo(self, patchname):
-        logging.debug('Undoing...')
-
     def getAppBundlePath(self, relativePath):
         '''Given a relative file from a patch, return its location in the installed game tree'''
         appBundleRelative = re.sub(r'^XComGame/Localization/[A-Za-z]{3}/([^\.]+\.[A-Za-z]{3})$', 
@@ -358,18 +376,6 @@ class GameDirectory(object):
         '''Given a relative file from a patch in the top-level "app" directory, return its location 
         in the installed game tree.'''
         return os.path.join(self.root, GameDirectory.MOD_FILE_ROOT, relativePath)
-
-    def phoneHomeDisable(self):
-        if not self.hostsScanner.isEnabled:
-            logging.warn('Phoning home is already blocked.')
-            return
-        self.hostsScanner.disable()
-
-    def phoneHomeEnable(self):
-        if self.hostsScanner.isEnabled:
-            logging.warn('Phoning home is already enabled.')
-            return
-        self.hostsScanner.enable()
 
     def nukeFeralDirectory(self):
         '''Delete all files in the feral directory.'''
@@ -922,30 +928,35 @@ class ExecutablePatcher(object):
         logging.info('Patched %d strings in "%s" as "%s"', total, self.infile, self.outfile)
 
 class HostsFileScanner(object):
+    '''Class which deals with the host file. Note, this uses the "borg pattern" - all instances share 
+    a single state.'''
     HOSTS = '/etc/hosts'
     PATTERNS = [re.compile(r'^[^#\s]*\S+\s+prod\.xcom\.firaxis\.com'),
                 re.compile(r'^[^#\s]*\S+\s+prod\.xcom-ew\.firaxis\.com'),
                 re.compile(r'^\s*#\s*Long-War-Installer:')]
     PHONE_HOME_DISABLE_TEXT = textwrap.dedent('''\
-        # Long-War-Installer: if the following two lines are present, XCom phone home is disabled.
+        # Long-War-Installer: if the following two lines are present, XCom phone home is blocked.
         127.0.0.1 prod.xcom-ew.firaxis.com
         127.0.0.1 prod.xcom.firaxis.com
         ''').strip().rstrip()
 
-    def __init__(self):
-        self._state = None
+    # Current state of the hosts file. None if unknown, True if blocked, False if not blocked
+    __blocked = None
 
     @property
-    def isEnabled(self):
-        if self._state is None:
-            self._state = not self._xcomEntryExists()
-        return self._state
+    def blocked(self):
+        if self.__class__.__blocked is None:
+            self.__class__.__blocked = self._xcomIsBlocked()
+        return self.__class__.__blocked
 
-    def enable(self):
-        '''Turn on phoning home by removing xcom entries from the hosts file'''
+    def unblock(self):
+        '''Turn on phoning home by removing xcom entries from the hosts file. Raise AlreadyUnblocked 
+        if the file doesn't have those entries in it already.'''
+        if not self.blocked:
+            raise AlreadyUnblocked
         count = 0
         try:
-            logging.debug('Enabling phone home...')
+            logging.debug('Unblocking phone home...')
             for line in fileinput.input(HostsFileScanner.HOSTS, inplace=1):
                 if any(pattern.match(line) for pattern in HostsFileScanner.PATTERNS):
                     logging.debug('Removing phone home line %s', line.rstrip())
@@ -957,10 +968,13 @@ class HostsFileScanner(object):
                 raise PhoneHomePermissionDenied(e)
             else:
                 raise e
-        logging.info('Removed %d lines from %s to enable phoning home', count, HostsFileScanner.HOSTS)
+        logging.info('Removed %d lines from %s to unblock phoning home', count, HostsFileScanner.HOSTS)
+        self._forceRescan()
 
-    def disable(self):
+    def block(self):
         '''Turn off phoning home by adding xcom entries to the hosts file'''
+        if self.blocked:
+            raise AlreadyBlocked
         try:
             logging.debug('Disabling phone home...')
             with open(HostsFileScanner.HOSTS, 'a') as f:
@@ -971,10 +985,15 @@ class HostsFileScanner(object):
             else:
                 raise e
         count = sum(1 for line in HostsFileScanner.PHONE_HOME_DISABLE_TEXT.splitlines())
-        logging.info('Added %d lines to %s to disable phone home', count, HostsFileScanner.HOSTS)
+        logging.info('Added %d lines to %s to block phoning home', count, HostsFileScanner.HOSTS)
+        self._forceRescan()
 
-    def _xcomEntryExists(self):
-        '''Scan hosts file. If a known XCom hosts is found, return True, else return False.'''
+    def _forceRescan(self):
+        '''Rescan hosts file on next access to self.blocked.'''
+        self.__class__.__blocked = None
+
+    def _xcomIsBlocked(self):
+        '''Scan hosts file. If a known XCom hosts entry is found, return True, else return False.'''
         logging.debug('Scanning %s for unlock state', HostsFileScanner.HOSTS)
         with open(HostsFileScanner.HOSTS, 'r') as f:
             for line in f:
@@ -1095,8 +1114,12 @@ class PhoneHomePermissionDenied(InstallError): pass
 class GameHasNotPhonedHome(InstallError): pass
 class EnemyWithinNotFound(InstallError): pass
 class ActiveBackupFoundDuringInstall(InstallError): pass
+class ActiveBackupFoundDuringDelete(InstallError): pass
 class NoActiveBackupFoundDuringUninstall(InstallError): pass
 class NoInstallationFilesFound(InstallError): pass
 class TooManyInstallationFilesFound(InstallError): pass
+class AlreadyBlocked(InstallError): pass
+class AlreadyUnblocked(InstallError): pass
+
 
 if __name__ == '__main__': main()

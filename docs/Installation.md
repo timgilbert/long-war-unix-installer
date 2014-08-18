@@ -28,12 +28,12 @@
   ```
 
 6. Block [phoning home](#phoning-home).
-  * After the game has phoned home one time, you'll want to disable phoning home, otherwise various parts 
+  * After the game has phoned home one time, you'll want to block phoning home, otherwise various parts 
     of the mod will be overwritten the next time you launch it and you'll probably crash to desktop.
   * You should also turn off automatic updates and cloud sync from Steam.
   ```
-  % sudo ./LongWarInstaller.py --phone-home-disable
-  Added 3 lines to /etc/hosts to disable phone home
+  % sudo ./LongWarInstaller.py --phone-home-block
+  Added 3 lines to /etc/hosts to block phone home
   ```
 
 7. Launch the game.
@@ -47,21 +47,21 @@ If the game doesn't phone home at least once before you install the mod, it will
 
 It is sufficient to launch the game, get to the main menu, and then quit to get *XCom* to phone home.
 
-Phoning home can be disabled by adding the following two entries to the `/etc/hosts` file:
+Phoning home can be blocked by adding the following two entries to the `/etc/hosts` file:
 
     127.0.0.1 prod.xcom-ew.firaxis.com
     127.0.0.1 prod.xcom.firaxis.com
 
 The installer is able to add and remove these entries itself, though it needs to be run as root in order to 
-do so. You can block or enable phoning home by passing flags to the script as follows.
+do so. You can block or unblock phoning home by passing flags to the script as follows.
 
-To disable phoning home by adding the above entries to `/etc/hosts`:
+To block phoning home by adding the above entries to `/etc/hosts`:
 
-    sudo ./LongWarInstaller.py --phone-home-disable 
+    sudo ./LongWarInstaller.py --phone-home-block 
 
 To re-enable it by removing those entries:
 
-    sudo ./LongWarInstaller.py --phone-home-enable 
+    sudo ./LongWarInstaller.py --phone-home-unblock 
 
 ## Dependencies and Requirements
 
@@ -81,9 +81,9 @@ installation directory (typically `~/Library/Application Support/Steam/SteamApps
 You can see a list of mods that have been backed up using the `--list` option:
 
     % ./LongWarInstaller.py --list
-    Phoning home is currently enabled.
+    Phoning home is currently blocked.
     The game has phoned home at least once.
-    Long_War_3_Beta_13-88-3-0b13: applied at 2014-08-04 20:19:00
+    Long_War_3_Beta_13-88-3-0b13-OSX: installer version 1.1.0, applied at 2014-08-17 21:28:26 (ACTIVE)
 
 The installer keeps track of what version of the mod is currently installed, and will refuse to install 
 a new version until you've rolled back to the vanilla installation. You can do so with the 

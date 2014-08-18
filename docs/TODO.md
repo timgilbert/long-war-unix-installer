@@ -2,12 +2,10 @@ These are various features I'd like to get done at some point.
 
 ## Short term features
 
+* Option to make .zip distributions, since NexusMods won't let mods upload `.dmg` files
 * Store total files in backup metadata and validate on uninstall
-* If backup version not found in `--uninstall` / `--delete`, list available ones
 * Log subprocess output to installation log
   * Something like this should work: http://stackoverflow.com/a/18345099/87990
-* `--delete` should refuse to delete active backups
-* Change "phone home" nomenclature to `--block` and `--unblock` for clarity
 
 ## Distro (in `dist` branch)
 
@@ -15,7 +13,6 @@ These are various features I'd like to get done at some point.
   to a previous mod version (+12MB per backup)
   * Might as well write the script in there too, it's only 52K
 * Make the .dmg look nice, for instance via http://stackoverflow.com/a/1513578/87990
-* Option to make .zip distributions, since NexusMods won't let mods upload `.dmg` files
 
 ## Refactoring
 
@@ -23,7 +20,6 @@ These are various features I'd like to get done at some point.
 * Factor out directory-remapping stuff
 * More DRY atttention is needed
 * Platform independence is not a crime
-* hostscanner stuff is kind of goofy
 * Tests (once the script is broken out into independent class files)
   * Should be able to set up test distros, etc
 

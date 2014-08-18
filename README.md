@@ -25,9 +25,9 @@ cd /Volumes/Long-War-Mac-Installer
 ```
 ./LongWarInstaller.py --install
 ```
-* Disable phoning home by modifying `/etc/hosts`:
+* Block phoning home by modifying `/etc/hosts`:
 ```
-sudo ./LongWarInstaller.py --phone-home-disable
+sudo ./LongWarInstaller.py --phone-home-block
 ```
 * Disable Steam updates and cloud sync
 * Launch the game and enjoy Long War
