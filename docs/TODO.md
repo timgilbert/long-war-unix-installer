@@ -2,7 +2,6 @@ These are various features I'd like to get done at some point.
 
 ## Short term features
 
-* Option to make .zip distributions, since NexusMods won't let mods upload `.dmg` files
 * Store total files in backup metadata and validate on uninstall
 
 ## Distro (in `dist` branch)
