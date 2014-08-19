@@ -26,6 +26,7 @@ def main():
     group.add_argument('--hmm', action='store_true')
 
     parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output on console')
+    parser.add_argument('--zip', action='store_true', help='Create .zip distribution (instead of .dmg)')
     parser.add_argument('--game-directory', help='Directory to use for game installation')
     parser.add_argument('--dry-run', action='store_true', 
                         help="Log what would be done, but don't modify game directory")
@@ -37,7 +38,7 @@ def main():
 
     try:
         if args.dist is not None:
-            make_distribution(args.dist)
+            make_distribution(args.dist, args.zip)
             return
 
         game = GameDirectory(args.game_directory)
@@ -166,12 +167,12 @@ def main():
         # This is mildly sloppy
         abort("Can't access {}: {}".format(e.filename, e.strerror))
 
-def make_distribution(files):
+def make_distribution(files, zipFormat=False):
     '''Given a list of filenames, extract each one in turn into a distribution directory. Then 
     copy the script and README.html to it and make a .dmg image based on the first filename.'''
     dist = Distribution(files)
-    dmg = dist.create()
-    logging.info('Created distribution %s as %s', dist, dmg)
+    filename = dist.create(zipFormat)
+    logging.info('Created distribution %s as %s', dist, filename)
 
 def abort(errmsg=None):
     if errmsg is not None:
@@ -229,7 +230,7 @@ def runCommand(command, debugOptions=[]):
     logging at DEBUG, append the list in debugOptions to command before running it.'''
     # A fancier script would log innoextract output to the log files if we're at debug
     if isDebug():
-        command.append(debugOptions)
+        command += debugOptions
     executable = os.path.basename(command[0])
 
     logging.debug('Running command: %s', ' '.join(command))
@@ -472,13 +473,6 @@ class AbstractExtractor(object):
     def extract(self, extractRoot):
         raise NotImplementedError('Subclasses should override extract()!')
 
-    def validate(self):
-        '''Make sure the relevant stuff is present, else throw an error'''
-        if self.innoextract is None:
-            raise InnoExtractorNotFound()
-        if not os.path.isfile(self.filename):
-            raise LongWarFileNotFound(self.filename)
-
     def _scan(self, extractRoot):
         '''After extraction, look in extracted directory to find applicable files.'''
         self.patchFiles = []
@@ -714,8 +708,7 @@ class Backup(object):
     def writeBackupMetadata(self):
         logging.debug('Writing backup metadata...')
         with open(os.path.join(self.root, self.METADATA_FILE), 'w') as output:
-            json.dump(self._serialize(), output, encoding='utf-8', 
-                      indent=4, sort_keys=True, separators=(',', ': '))
+            json.dump(self._serialize(), output, indent=2, sort_keys=True)
 
     def uninstall(self):
         '''Restore all files from this backup to the game directory.'''
@@ -1006,6 +999,9 @@ class HostsFileScanner(object):
         return False
 
 class Distribution(object):
+    '''Code to create distributions (packaged files which can be uploaded websites for distribution).
+    The files produced consist of a bunch of Long War install files (probably from the Windows 
+    distribution of Long War), plus this script and docs/README.html with some metadata inserted.'''
     TARGET_DIRECTORY = 'dist'
     TEMP_PREFIX = 'LongWar_Dist_'
     README_FILENAME = 'README.html'
@@ -1018,30 +1014,38 @@ class Distribution(object):
         self.files = files
         self.version = AbstractExtractor.modName(files[0])
         self.appendix = datetime.date.today().strftime('%Y-%m-%d')
-        self.dmgName = '{v}.{d}.OSX.dmg'.format(v=self.version, d=datetime.date.today().strftime('%Y-%m-%d'))
-        self.dmg = os.path.join(Distribution.TARGET_DIRECTORY, self.dmgName)
+        self.distName = '{v}.{d}.OSX'.format(v=self.version, d=datetime.date.today().strftime('%Y-%m-%d'))
+        self.distPath = os.path.join(Distribution.TARGET_DIRECTORY, self.distName)
         # For now we're assuming that we run --dist from the installer script itself
         self.script = os.path.realpath(__file__)
+        self.totalFiles = 0
         setupFileLogging(os.path.join(self.TARGET_DIRECTORY, 'dist.log'))
 
     def __repr__(self):
         return '<Distribution {v}, {n} files>'.format(v=self.version, n=len(self.files))
 
-    def create(self):
-        '''Create a .dmg file and return its location'''
+    def create(self, zipFormat=False):
+        '''Create a distribution file and return its location. If dmgFormat is True, create a .dmg 
+        distrubition. Otherwise, create a .zip-based distribution.'''
         logging.debug('Creating distribution based on %s...', self.files)
 
         with TempDirectory('LongWar_Dist_') as distDir:
-            zipFile = self.createZip(distDir)
-            logging.debug('Created zip archive %s', zipFile)
+            
+            installationZip = self.createInstallationZip(distDir)
+            logging.debug('Created zip archive %s', installationZip)
             # Copy script to dist directory
             shutil.copy2(self.script, distDir)
             logging.debug('Copied %s, version %s, to %s', self.script, __version__, distDir)
             self.copyReadmeHtml(distDir)
 
-            self.createDmg(self.dmg, distDir)
+            if zipFormat:
+                self.distPath += '.zip'
+                self.createZipDist(self.distPath, distDir)
+            else:
+                self.distPath += '.dmg'
+                self.createDmgDist(self.distPath, distDir)
 
-        return self.dmg
+        return self.distPath
 
     def copyReadmeHtml(self, distDir):
         '''Copy the README.html file from the doc/ directory into the dist directory, replacing its values.'''
@@ -1050,7 +1054,8 @@ class Distribution(object):
             'replacements': { 
                 'version': self.version, 
                 'installerVersion': __version__,
-                'dmgName': self.dmgName
+                'distPath': os.path.basename(self.distPath),
+                'totalFiles': self.totalFiles
             },
             'sources': [os.path.basename(f) for f in self.files]
         }
@@ -1070,41 +1075,82 @@ class Distribution(object):
 
         logging.debug('Copied README %s to %s', html, distDir)
 
-    def createZip(self, distDir):
+    def createInstallationZip(self, distDir):
         '''Extract each file from self.filenames in turn, with newer files overwriting older ones, into a
         temp directory. Create a zip file in distDir with a name based on self.version, and return its path.'''
         zipName = os.path.join(distDir, self.version + '-OSX.zip')
         with TempDirectory('LongWar_Zip_') as zipDir: 
             # Extract every file to a directory
             for filename in self.files:
-                logging.debug('Extracting %s', filename)
                 with getExtractor(filename, zipDir) as extracted:
-                    logging.debug('Huzzah')
+                    logging.debug('Extracted source file %s', filename)
             # Now create a zip file
-            with zipfile.ZipFile(zipName, 'w', zipfile.ZIP_DEFLATED) as distZip:
-                relRoot = os.path.abspath(os.path.join(zipDir, os.pardir))
-                for root, dirs, files in os.walk(zipDir):
-                    for basename in files:
-                        fullPath = os.path.join(root, basename)
-                        if any(re.search(p, fullPath) for p in self.IGNORE_PATTERNS):
-                            logging.debug('Skipping ignored path %s', fullPath)
-                            continue
-                        relativePath = getRelativePath(fullPath, zipDir)
-                        if os.path.isfile(filename): # regular files only
-                            logging.debug('Adding %s to zip as %s', fullPath, relativePath)
-                            distZip.write(fullPath, relativePath)
+            self.totalFiles = zipUpDirectory(zipName, zipDir, self._skipFilter)
         return zipName
 
-    def createDmg(self, dmg, distDir):
-        '''Create a .dmg image in the given file containing the directory given.'''
+    def _skipFilter(self, filePath):
+        return any(re.search(p, filePath) for p in self.IGNORE_PATTERNS)
+
+    def createDmgDist(self, dmg, distDir):
+        '''Create a .dmg distribution image in the file dmg containing the directory distDir.'''
         if os.path.isfile(dmg):
             logging.info('Removing previous installation image %s', dmg)
             removeOrWarn(dmg)
         volname = 'Long-War-Mac-Installer'
         logging.info('Creating disk image "%s"...', dmg)
-        command = ['hdiutil', 'create', dmg, '-volname', volname, '-fs', 'HFS+', '-srcfolder', distDir, '-verbose']
-        result = runCommand(command)
+        command = ['hdiutil', 'create', dmg, '-volname', volname, '-fs', 'HFS+', '-srcfolder', distDir]
+        result = runCommand(command, ['-verbose'])
         logging.debug('Created %s from %s, return value %s', dmg, distDir, result)
+
+    def createZipDist(self, zipDist, distDir):
+        '''Create a .zip distribution image in the file zipDist containing the directory distDir.'''
+        if os.path.isfile(zipDist):
+            logging.info('Removing previous installation image %s', zipDist)
+            removeOrWarn(zipDist)
+        zipUpDirectory(zipDist, distDir, self._skipFilter, topLevelPrefix=self.version)
+        logging.debug('Created %s from %s', zipDist, distDir)
+
+def zipUpDirectory(zipName, zipDir, skipFilter=None, topLevelPrefix=''):
+    '''Create a zip file containing the entire contents of zipDir directory. The pathnames in the 
+    zip archive will be relative to the directory given, so zipping '/tmp/root', where root contains 
+    'foo/bar.txt' and 'bar.txt', will result in a zip file containing 'bar'txt' at the top level 
+    (as opposed to being named 'root/bar.txt'). If skipFilter is not None, it will be called as a 
+    single-argument function with each filename in turn, and only filenames for which it returns 
+    True will be included in the resulting zip file.
+
+    Return the total amount of files included in the zip file.'''
+
+    def addExecutableFile(zipFile, fullPath, relativePath, compression):
+        '''Add a file to the .zip file, including executable permissions in the info-zip metadata.'''
+        # cf http://stackoverflow.com/a/434689/87990
+        info = zipfile.ZipInfo(fullPath)
+        info.external_attr = 0755 << 16L
+        info.filename = relativePath
+        with open(fullPath) as f:
+            contents = f.read()
+        zipFile.writestr(info, contents, compression)
+
+    totalFiles = 0
+    with zipfile.ZipFile(zipName, 'w', zipfile.ZIP_DEFLATED) as resultZip:
+        relRoot = os.path.abspath(os.path.join(zipDir, os.pardir))
+        for root, dirs, files in os.walk(zipDir):
+            for basename in files:
+                fullPath = os.path.join(root, basename)
+                if skipFilter is not None and skipFilter(fullPath):
+                    logging.debug('Skipping filtered path %s', fullPath)
+                    continue
+                relativePath = os.path.join(topLevelPrefix, getRelativePath(fullPath, zipDir))
+                if os.path.isfile(fullPath): # regular files only
+                    _, extension = os.path.splitext(fullPath)
+                    compression = zipfile.ZIP_STORED if extension in ['.zip'] else zipfile.ZIP_DEFLATED
+                    logging.debug('Adding %s to zip as %s', fullPath, relativePath)
+                    if os.access(fullPath, os.X_OK):
+                        addExecutableFile(resultZip, fullPath, relativePath, compression)
+                    else:
+                        resultZip.write(fullPath, relativePath, compression)
+                    totalFiles += 1
+    return totalFiles
+
 
 # Errors. These might be a bit out of control, but they simplify the script error handling somewhat
 class InstallError(Exception): pass
