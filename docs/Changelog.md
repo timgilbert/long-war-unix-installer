@@ -2,6 +2,7 @@
 
 * Updates to README.html
 * Added option to build distribution as `.zip` files instead of `.dmg` files
+* Copying distribution files to backup directory
 
 # Version 1.1.0
 

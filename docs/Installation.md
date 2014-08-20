@@ -8,7 +8,7 @@
   * If the game doesn't phone home at least once before you install the mod, it will crash when you launch it.
   * It is sufficient to launch the game, get to the main menu, and then quit to get *XCom* to phone home.
 
-3. Get the Long War files installer and mount it.
+3. Get the Long War files distribution for OS/X and unpack it.
   * Download the OS/X version of the installer (a `.dmg` file) from the 
     [Long War home page](http://www.nexusmods.com/xcom/mods/88/).
     * Note that due to some restrictions at NexusMods, this is currently a `.dmg` file inside a `.zip` file
