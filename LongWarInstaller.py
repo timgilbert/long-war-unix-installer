@@ -23,7 +23,6 @@ def main():
     group.add_argument('--phone-home-unblock', action='store_true', help='Unblock phoning home by modifying /etc/hosts')
     group.add_argument('--phone-home-block', action='store_true', help='Block phoning home by modifying /etc/hosts')
     group.add_argument('--dist', nargs='+', help='Build distribution with files as input', metavar='file')
-    group.add_argument('--hmm', action='store_true')
 
     parser.add_argument('-d', '--debug', action='store_true', help='Show debugging output on console')
     parser.add_argument('--zip', action='store_true', help='Create .zip distribution (instead of .dmg)')
@@ -329,7 +328,9 @@ class GameDirectory(object):
         self._validateHasEnemyWith()
 
         if filename is True:
-            zips = [f for f in os.listdir(os.path.dirname(__file__)) if f.endswith('.zip') and os.path.isfile(f)]
+            scriptDir = os.path.dirname(__file__)
+            zips = [os.path.join(scriptDir, f) for f in os.listdir(scriptDir) if f.endswith('.zip')]
+            zips = [f for f in zips if os.path.isfile(f)] # There is surely a more pythonic way to do this
             if not zips:
                 raise NoInstallationFilesFound()
             elif len(zips) > 1:
@@ -479,7 +480,6 @@ class AbstractExtractor(object):
         self.patchFiles = []
 
         for root, dirs, files in os.walk(extractRoot):
-            logging.debug('Hmm: root %s, dirs %s, files %s', root, dirs, files)
             if self.SKIP_DIRECTORY in dirs:
                 dirs.remove(self.SKIP_DIRECTORY)
             if re.search(self.PATCH_DIRECTORY, root):
@@ -683,7 +683,8 @@ class Backup(object):
     
     def copyDistAndScript(self, distFilename):
         '''Copy this installer script and the distribution it was created in into the backup.'''
-        for original in [distFilename, __file__]:
+        readme = os.path.join(os.path.dirname(distFilename), Distribution.README_FILENAME)
+        for original in [distFilename, __file__, readme]:
             target = os.path.join(self.root, os.path.basename(original))
             logging.debug('Backing up distribution file %s as %s', original, target)
             copyOrWarn(original, target)
@@ -816,7 +817,6 @@ class Patcher(object):
                 if modFile.isUpk:
                     self.removeUncompressedSize(modFile)
                 if modFile.isOverride:
-                    logging.debug('Copying override to override directory')
                     self.backup.backupOverrideFile(modFile)
                     self.copyOverrideFile(modFile)
                 if modFile.feralPath is not None:
