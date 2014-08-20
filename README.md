@@ -45,7 +45,6 @@ For usage information, run `LongWarInstaller.py --help`. See also the
 ## Known Bugs (in the installer)
 
 * Root level files are installed in `XCOMData/XEW` instead of at the root
-* Dist zip files are created with temp directory name at top level
 
 # State of the Mod
 

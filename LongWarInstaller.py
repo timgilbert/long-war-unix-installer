@@ -352,6 +352,7 @@ class GameDirectory(object):
             self.activeBackup = newBackup
 
         newBackup.setupInstallLog()
+        newBackup.copyDistAndScript(filename)
 
         # Extract and patch
         patcher = Patcher(version, newBackup, self, dryRun)
@@ -478,6 +479,7 @@ class AbstractExtractor(object):
         self.patchFiles = []
 
         for root, dirs, files in os.walk(extractRoot):
+            logging.debug('Hmm: root %s, dirs %s, files %s', root, dirs, files)
             if self.SKIP_DIRECTORY in dirs:
                 dirs.remove(self.SKIP_DIRECTORY)
             if re.search(self.PATCH_DIRECTORY, root):
@@ -679,6 +681,13 @@ class Backup(object):
             logging.debug('Backing up feral file %s', target)
             self._copyFile(original, target)
     
+    def copyDistAndScript(self, distFilename):
+        '''Copy this installer script and the distribution it was created in into the backup.'''
+        for original in [distFilename, __file__]:
+            target = os.path.join(self.root, os.path.basename(original))
+            logging.debug('Backing up distribution file %s as %s', original, target)
+            copyOrWarn(original, target)
+
     def _copyFile(self, original, destination):
         '''Copy original to destination, creating directories if need be'''
         logging.debug('Backing up %s to %s...', original, destination)
@@ -801,7 +810,6 @@ class Patcher(object):
         self.gameDirectory.nukeFeralDirectory()
 
         with extractor as extracted:
-            logging.debug('Huh? %s', extracted)
             for modFile in extracted.patchFiles:
                 self.backup.backupModFile(modFile)
                 self.copyModFile(modFile)
@@ -1029,6 +1037,13 @@ class Distribution(object):
         distrubition. Otherwise, create a .zip-based distribution.'''
         logging.debug('Creating distribution based on %s...', self.files)
 
+        if zipFormat:
+            self.distPath += '.zip'
+            createDist = self.createZipDist
+        else:
+            self.distPath += '.dmg'
+            createDist = self.createDmgDist
+
         with TempDirectory('LongWar_Dist_') as distDir:
             
             installationZip = self.createInstallationZip(distDir)
@@ -1038,12 +1053,7 @@ class Distribution(object):
             logging.debug('Copied %s, version %s, to %s', self.script, __version__, distDir)
             self.copyReadmeHtml(distDir)
 
-            if zipFormat:
-                self.distPath += '.zip'
-                self.createZipDist(self.distPath, distDir)
-            else:
-                self.distPath += '.dmg'
-                self.createDmgDist(self.distPath, distDir)
+            createDist(self.distPath, distDir)
 
         return self.distPath
 
