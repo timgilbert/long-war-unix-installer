@@ -6,7 +6,7 @@ import os, sys, argparse, subprocess, logging, tempfile, shutil, textwrap, re, j
 import fileinput, errno, zipfile
 import logging.handlers, distutils.spawn
 
-__version__ = '1.1.1'
+__version__ = '1.1.2'
 ALIEN = u'\U0001f47d ' # This is goofy
 
 def main():
