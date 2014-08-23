@@ -6,9 +6,6 @@ These are various features I'd like to get done at some point.
 
 ## Distro (in `dist` branch)
 
-* Store original distro sources in backups, so user doesn't need .dmg to roll back 
-  to a previous mod version (+12MB per backup)
-  * Might as well write the script in there too, it's only 52K
 * Make the .dmg look nice, for instance via http://stackoverflow.com/a/1513578/87990
 
 ## Refactoring
