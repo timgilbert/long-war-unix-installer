@@ -3,6 +3,10 @@ These are various features I'd like to get done at some point.
 ## Short term features
 
 * Store total files in backup metadata and validate on uninstall
+* Rename zip file in distribution to `.mod` or something so that users don't try to manually 
+  unzip it when they download the distribution.
+* Have some way to validate that mod files have not been overwritten by phoning home (maybe a 
+  `--verify` command-line option)
 
 ## Distro (in `dist` branch)
 
