@@ -18,13 +18,15 @@
 
 4. Open a terminal and cd into the disk image, you'll need to run commands from here.
   ```
-  % cd /Volumes/Long-War-Mac-Installer/
+  $ cd /Volumes/Long-War-Mac-Installer/
   ```
+  *Note:* don't type in the "`$`" part. That's just shorthand for the prompt that you should be seeing in 
+  the terminal (it will probably look something more like "`MacBook:~ username$ `").
 
 5. Install the mod
   * Run `LongWarInstaller.py` with the `--install` option.
   ```
-  % ./LongWarInstaller.py --install 
+  $ ./LongWarInstaller.py --install 
   Extracting mod "Long_War_3_Beta_13-88-3-0b13-OSX" to temp directory...
   Applied mod version "Long_War_3_Beta_13-88-3-0b13-OSX" to game directory.
   Install log available in "/Users/whatever/Library/Application Support/Steam/SteamApps/common/XCom-Enemy-Unknown/Long-War-Backups/Long_War_3_Beta_13-88-3-0b13-OSX/install.log"
@@ -35,7 +37,8 @@
     of the mod will be overwritten the next time you launch it and you'll probably crash to desktop.
   * You should also turn off automatic updates and cloud sync from Steam.
   ```
-  % sudo ./LongWarInstaller.py --phone-home-block
+  $ sudo ./LongWarInstaller.py --phone-home-block
+  Password:  [type in your system password here, it won't display]
   Added 3 lines to /etc/hosts to block phone home
   ```
 
@@ -83,7 +86,7 @@ installation directory (typically `~/Library/Application Support/Steam/SteamApps
 
 You can see a list of mods that have been backed up using the `--list` option:
 
-    % ./LongWarInstaller.py --list
+    $ ./LongWarInstaller.py --list
     Phoning home is currently blocked.
     The game has phoned home at least once.
     Long_War_3_Beta_13-88-3-0b13-OSX: installer version 1.1.0, applied at 2014-08-17 21:28:26 (ACTIVE)
@@ -92,14 +95,14 @@ The installer keeps track of what version of the mod is currently installed, and
 a new version until you've rolled back to the vanilla installation. You can do so with the 
 `--uninstall` option to the script. 
 
-    % ./LongWarInstaller.py --uninstall 
+    $ ./LongWarInstaller.py --uninstall 
     Reverted to backups for Long War "Long_War_3_Beta_13-88-3-0b13"
     Uninstall log available in "/Users/whatever/Library/Application Support/Steam/SteamApps/common/XCom-Enemy-Unknown/Long-War-Backups/Long_War_3_Beta_13-88-3-0b13/uninstall.log"
 
 Each backup is roughly 27MB. You can delete one with the --delete flag, but be warned that this is 
 *permanent*.
 
-    % ./LongWarInstaller.py --delete Long_War_3_Beta_13-88-3-0b13
+    $ ./LongWarInstaller.py --delete Long_War_3_Beta_13-88-3-0b13
     Deleted backup "Long_War_3_Beta_13-88-3-0b13"
 
 # Verification
