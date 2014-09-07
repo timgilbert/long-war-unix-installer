@@ -7,6 +7,8 @@ These are various features I'd like to get done at some point.
   unzip it when they download the distribution.
 * Have some way to validate that mod files have not been overwritten by phoning home (maybe a 
   `--verify` command-line option)
+* Get the installer to work with the GamersGate XCom distribution - this would probably be a 
+  good warm-up to making things more platform-neutral so it would eventually work on Linux, too.
 
 ## Distro (in `dist` branch)
 
